@@ -22,6 +22,9 @@ Zixi plugin branch for OBS Studio
  - Allow bonding multiple network connections [ not present yet ]
  
  - Adjusts encoder bitrate according to network conditions, when using libx264 [ not present yet ]
+ 
+ - As to support some of the above features a core change to OBS core libraries was needed.
+	As a side effect auto update is disabled in this branch
 
 What is OBS Studio?
 -------------------
