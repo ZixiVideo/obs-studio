@@ -12,6 +12,16 @@ OBS Studio <https://obsproject.com>
 .. image:: https://discordapp.com/api/guilds/348973006581923840/widget.png?style=shield
    :alt: OBS Studio Discord Server
    :target: https://obsproject.com/discord
+   
+Zixi plugin branch for OBS Studio
+=================================
+ - Adds native Zixi output to OBS for robust low latency streaming [ done ]
+
+ - Supports streaming to AWS MediaConnect [ done ]
+ 
+ - Allow bonding multiple network connections [ done ]
+ 
+ - Adjusts encoder bitrate according to network conditions, when using libx264, or using nvenc (new implemntation) [ done ]
 
 What is OBS Studio?
 -------------------

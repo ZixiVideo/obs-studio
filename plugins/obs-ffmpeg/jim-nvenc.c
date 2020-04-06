@@ -71,6 +71,8 @@ struct nvenc_data {
 
 	uint8_t *sei;
 	size_t sei_size;
+
+	struct obs_encoder_feedback_info encoder_feedback_info;
 };
 
 /* ------------------------------------------------------------------------- */
@@ -215,6 +217,26 @@ static inline int nv_get_cap(struct nvenc_data *enc, NV_ENC_CAPS cap)
 	return v;
 }
 
+static bool nvenc_update_bitrate(void *data, int bitrate) {
+	struct nvenc_data *enc = data;
+
+	enc->config.rcParams.averageBitRate = bitrate * 1000;
+	enc->config.rcParams.maxBitRate = bitrate * 1000;
+
+	NV_ENC_RECONFIGURE_PARAMS params = {0};
+	params.version = NV_ENC_RECONFIGURE_PARAMS_VER;
+	params.reInitEncodeParams = enc->params;
+	params.resetEncoder = 1;
+	params.forceIDR = 1;
+
+	if (NV_FAILED(nv.nvEncReconfigureEncoder(enc->session,
+							&params))) {
+		return false;
+	}
+
+	return true;
+}
+
 static bool nvenc_update(void *data, obs_data_t *settings)
 {
 	struct nvenc_data *enc = data;
@@ -222,20 +244,7 @@ static bool nvenc_update(void *data, obs_data_t *settings)
 	/* Only support reconfiguration of CBR bitrate */
 	if (enc->can_change_bitrate) {
 		int bitrate = (int)obs_data_get_int(settings, "bitrate");
-
-		enc->config.rcParams.averageBitRate = bitrate * 1000;
-		enc->config.rcParams.maxBitRate = bitrate * 1000;
-
-		NV_ENC_RECONFIGURE_PARAMS params = {0};
-		params.version = NV_ENC_RECONFIGURE_PARAMS_VER;
-		params.reInitEncodeParams = enc->params;
-		params.resetEncoder = 1;
-		params.forceIDR = 1;
-
-		if (NV_FAILED(nv.nvEncReconfigureEncoder(enc->session,
-							 &params))) {
-			return false;
-		}
+		return nvenc_update(data, bitrate);
 	}
 
 	return true;
@@ -332,7 +341,13 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	const char *profile = obs_data_get_string(settings, "profile");
 	bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
 	bool lookahead = obs_data_get_bool(settings, "lookahead");
+	bool repeat_headers = obs_data_get_bool(settings, "repeat_headers");
 	int bf = (int)obs_data_get_int(settings, "bf");
+
+	enc->encoder_feedback_info.last_sent_bitrate = bitrate;
+	enc->encoder_feedback_info.requested_bitrate = bitrate;
+	enc->encoder_feedback_info.last_update_timestamp = os_gettime_ns();
+	
 	bool vbr = astrcmpi(rc, "VBR") == 0;
 	NVENCSTATUS err;
 
@@ -822,6 +837,26 @@ static bool nvenc_encode_tex(void *data, uint32_t handle, int64_t pts,
 		return false;
 	}
 
+
+	if (enc->encoder_feedback_info.last_sent_bitrate !=
+	    enc->encoder_feedback_info.requested_bitrate) {
+		uint64_t now_time = os_gettime_ns();
+		if (now_time >
+		    (enc->encoder_feedback_info.last_update_timestamp +
+		     1000000000)) {
+
+			if (!nvenc_update_bitrate(enc,
+						  enc->encoder_feedback_info
+							  .requested_bitrate)) {
+				error("Enocde failed: failed to set dynamic bitrate");
+			}
+			enc->encoder_feedback_info.last_sent_bitrate =
+				enc->encoder_feedback_info.requested_bitrate;
+			enc->encoder_feedback_info.last_update_timestamp =
+				now_time;
+		}
+	}
+
 	bs = &enc->bitstreams.array[enc->next_bitstream];
 	nvtex = &enc->textures.array[enc->next_bitstream];
 
@@ -950,6 +985,12 @@ static bool nvenc_sei_data(void *data, uint8_t **sei, size_t *size)
 	return true;
 }
 
+static void nvenc_encoder_feedback(void *data, unsigned int bitrate_kbps)
+{
+	struct nvenc_data *enc = data;
+	enc->encoder_feedback_info.requested_bitrate = bitrate_kbps;
+}
+
 struct obs_encoder_info nvenc_info = {
 	.id = "jim_nvenc",
 	.codec = "h264",
@@ -964,4 +1005,5 @@ struct obs_encoder_info nvenc_info = {
 	.get_properties = nvenc_properties,
 	.get_extra_data = nvenc_extra_data,
 	.get_sei_data = nvenc_sei_data,
+	.encoder_feedback = nvenc_encoder_feedback
 };

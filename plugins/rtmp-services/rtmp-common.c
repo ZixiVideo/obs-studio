@@ -10,6 +10,9 @@
 #include "nimotv.h"
 #include "showroom.h"
 
+#ifdef ENABLE_ZIXI_SUPPORT
+#include "../zixi-output/zixi-output.h"
+#endif
 struct rtmp_common {
 	char *service;
 	char *server;
@@ -21,6 +24,17 @@ struct rtmp_common {
 	int max_fps;
 
 	bool supports_additional_audio_track;
+
+#ifdef ENABLE_ZIXI_SUPPORT
+	bool zixi_fwd;
+	char * zixi_url;
+	char * zixi_password;
+	int	zixi_latency_id;
+	int	zixi_encryption_type;
+	char * zixi_encryption_key;
+	bool	zixi_encoder_feedback;
+	bool    zixi_bonding;
+#endif
 };
 
 static const char *rtmp_common_getname(void *unused)
@@ -34,6 +48,7 @@ static inline json_t *find_service(json_t *root, const char *name,
 				   const char **p_new_name);
 static inline bool get_bool_val(json_t *service, const char *key);
 static inline const char *get_string_val(json_t *service, const char *key);
+static const char *rtmp_common_get_output_type(void *data);
 static inline int get_int_val(json_t *service, const char *key);
 
 extern void twitch_ingests_refresh(int seconds);
@@ -108,8 +123,8 @@ static void update_recommendations(struct rtmp_common *service, json_t *rec)
 	service->max_fps = get_int_val(rec, "max fps");
 }
 
-static void rtmp_common_update(void *data, obs_data_t *settings)
-{
+
+static void rtmp_common_update_ex(void *data, obs_data_t *settings, bool set_defaults) {
 	struct rtmp_common *service = data;
 
 	bfree(service->service);
@@ -117,6 +132,32 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 	bfree(service->output);
 	bfree(service->key);
 	bfree(service->supported_resolutions);
+
+#ifdef ENABLE_ZIXI_SUPPORT
+	bfree(service->zixi_url);
+	bfree(service->zixi_password);
+	bfree(service->zixi_encryption_key);
+
+	//service->zixi_fwd = obs_data_get_bool(settings, "zixi_fwd");
+	//service->zixi_url = bstrdup(obs_data_get_string(settings, "zixi_url"));
+	//service->zixi_password = bstrdup(obs_data_get_string(settings, "zixi_password"));
+	service->zixi_fwd = true;
+	service->zixi_url = bstrdup("zixi://127.0.0.1/obs_hello");
+	service->zixi_password = NULL;
+	service->zixi_encryption_key = bstrdup(obs_data_get_string(settings, "zixi_encryption_key"));
+	service->zixi_encoder_feedback = obs_data_get_bool(settings, "zixi_encoder_feedback");
+	service->zixi_bonding = obs_data_get_bool(settings, "zixi_bonding");
+
+	if (set_defaults) {
+		service->zixi_encryption_type = 3;
+		obs_data_set_int(settings, "zixi_encryption_id",3);
+		service->zixi_latency_id = 6;
+		obs_data_set_int(settings, "zixi_latency_id",6);
+	} else {
+		service->zixi_encryption_type = obs_data_get_int(settings, "zixi_encryption_id");
+		service->zixi_latency_id = obs_data_get_int(settings, "zixi_latency_id");
+	}
+#endif
 
 	service->service = bstrdup(obs_data_get_string(settings, "service"));
 	service->server = bstrdup(obs_data_get_string(settings, "server"));
@@ -139,7 +180,7 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 
 		if (serv) {
 			json_t *rec = json_object_get(serv, "recommended");
-			if (json_is_object(rec)) {
+			if (rec && json_is_object(rec)) {
 				update_recommendations(service, rec);
 			}
 
@@ -150,8 +191,14 @@ static void rtmp_common_update(void *data, obs_data_t *settings)
 	}
 	json_decref(root);
 
-	if (!service->output)
-		service->output = bstrdup("rtmp_output");
+	if (!service->output) 
+		service->output = bstrdup(rtmp_common_get_output_type(data));
+	
+}
+
+static void rtmp_common_update(void *data, obs_data_t *settings)
+{
+	rtmp_common_update_ex(data,settings,false);
 }
 
 static void rtmp_common_destroy(void *data)
@@ -163,13 +210,18 @@ static void rtmp_common_destroy(void *data)
 	bfree(service->server);
 	bfree(service->output);
 	bfree(service->key);
+#ifdef ENABLE_ZIXI_SUPPORT
+	bfree(service->zixi_url);
+	bfree(service->zixi_password);
+	bfree(service->zixi_encryption_key);
+#endif
 	bfree(service);
 }
 
 static void *rtmp_common_create(obs_data_t *settings, obs_service_t *service)
 {
 	struct rtmp_common *data = bzalloc(sizeof(struct rtmp_common));
-	rtmp_common_update(data, settings);
+	rtmp_common_update_ex(data, settings,true);
 
 	UNUSED_PARAMETER(service);
 	return data;
@@ -534,6 +586,22 @@ static obs_properties_t *rtmp_common_properties(void *unused)
 
 	obs_properties_add_text(ppts, "key", obs_module_text("StreamKey"),
 				OBS_TEXT_PASSWORD);
+
+#ifdef ENABLE_ZIXI_SUPPORT
+	p = obs_properties_add_bool(ppts, "zixi_fwd", obs_module_text("ZixiFwd"));
+	obs_properties_add_text(ppts, "zixi_url", obs_module_text("ZixiUrl"),
+		OBS_TEXT_DEFAULT);
+	obs_properties_add_text(ppts, "zixi_password", obs_module_text("ZixiPassword"),
+		OBS_TEXT_PASSWORD);
+	obs_properties_add_list(ppts, "zixi_latency", obs_module_text("ZixiLatency"), OBS_COMBO_TYPE_LIST,
+		OBS_COMBO_FORMAT_INT);
+	obs_properties_add_list(ppts, "zixi_encryption_type", obs_module_text("ZixiEncryptionType"), OBS_COMBO_TYPE_LIST,
+		OBS_COMBO_FORMAT_STRING);
+	obs_properties_add_text(ppts, "zixi_encryption_key", obs_module_text("ZixiEncryptionKey"),
+		OBS_TEXT_PASSWORD);
+	obs_properties_add_bool(ppts, "zixi_encoder_feedback", obs_module_text("ZixiEncoderFeedback"));
+	obs_properties_add_bool(ppts, "zixi_bonding", obs_module_text("ZixiBonding"));
+#endif 	// ENABLE_ZIXI_SUPPORT
 	return ppts;
 }
 
@@ -541,7 +609,7 @@ static void apply_video_encoder_settings(obs_data_t *settings,
 					 json_t *recommended)
 {
 	json_t *item = json_object_get(recommended, "keyint");
-	if (json_is_integer(item)) {
+	if (item && json_is_integer(item)) {
 		int keyint = (int)json_integer_value(item);
 		obs_data_set_int(settings, "keyint_sec", keyint);
 	}
@@ -643,7 +711,15 @@ static void rtmp_common_apply_settings(void *data, obs_data_t *video_settings,
 static const char *rtmp_common_get_output_type(void *data)
 {
 	struct rtmp_common *service = data;
-	return service->output;
+
+	const char * ret = service->output;
+#ifdef ENABLE_ZIXI_SUPPORT
+	if (service->zixi_fwd) {
+		ret = "zixi_output";
+	}
+#endif
+
+	return ret;
 }
 
 static const char *rtmp_common_url(void *data)
