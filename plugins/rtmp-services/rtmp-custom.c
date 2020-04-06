@@ -209,6 +209,6 @@ struct obs_service_info rtmp_custom_service = {
 	.get_key         = rtmp_custom_key,
 	.get_username    = rtmp_custom_username,
 	.get_password    = rtmp_custom_password,
-	.get_output_type = rtmp_custom_get_output_type
-	.apply_encoder_settings = rtmp_custom_apply_settings,
+	.get_output_type = rtmp_custom_get_output_type,
+	.apply_encoder_settings = rtmp_custom_apply_settings
 };

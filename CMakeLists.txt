@@ -9,7 +9,6 @@ project(obs-studio)
 
 option(DEBUG_FFMPEG_MUX "Debug FFmpeg muxer subprocess" FALSE)
 option(BUILD_ZIXI_OUTPUT "Build zixi output plugin" TRUE)
-option(BUILD_ZIXI_OUTPUT "Build zixi output plugin" TRUE)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 

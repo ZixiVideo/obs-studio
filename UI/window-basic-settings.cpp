@@ -426,6 +426,14 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->authUsername,         EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->authPw,               EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->ignoreRecommended,    CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->zixiFwd,		     CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdEnableBonding, CHECK_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdEncoderFeedback, CHECK_CHANGED,STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdEncryptionKey, EDIT_CHANGED,   STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdEncryptionType,COMBO_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdLatency,	     COMBO_CHANGED,  STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdPassword,	     EDIT_CHANGED,   STREAM1_CHANGED);
+	HookWidget(ui->zixiFwdUrl,	     EDIT_CHANGED,   STREAM1_CHANGED);
 	HookWidget(ui->outputMode,           COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->simpleOutputPath,     EDIT_CHANGED,   OUTPUTS_CHANGED);
 	HookWidget(ui->simpleNoSpace,        CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -986,7 +994,7 @@ void OBSBasicSettings::LoadEncoderTypes()
 
 		const char *streaming_codecs[] = {
 			"h264",
-			//"hevc",
+			"hevc",
 		};
 		bool is_streaming_codec = false;
 		for (const char *test_codec : streaming_codecs) {
