@@ -56,6 +56,7 @@ struct obs_x264 {
 	size_t extra_data_size;
 	size_t sei_size;
 
+	struct obs_encoder_feedback_info encoder_feedback_info;
 	os_performance_token_t *performance_token;
 };
 
@@ -408,6 +409,7 @@ static void update_params(struct obs_x264 *obsx264, obs_data_t *settings,
 	int bf = (int)obs_data_get_int(settings, "bf");
 	bool use_bufsize = obs_data_get_bool(settings, "use_bufsize");
 	bool cbr_override = obs_data_get_bool(settings, "cbr");
+	bool repeat_headers	= obs_data_get_bool(settings, "repeat_headers");
 	enum rate_control rc;
 
 #ifdef ENABLE_VFR
@@ -466,6 +468,10 @@ static void update_params(struct obs_x264 *obsx264, obs_data_t *settings,
 	obsx264->params.p_log_private = obsx264;
 	obsx264->params.i_log_level = X264_LOG_WARNING;
 
+	obsx264->encoder_feedback_info.requested_bitrate = bitrate;
+	obsx264->encoder_feedback_info.last_sent_bitrate = bitrate;
+	obsx264->encoder_feedback_info.last_update_timestamp = os_gettime_ns();
+		
 	if (obs_data_has_user_value(settings, "bf"))
 		obsx264->params.i_bframe = bf;
 
@@ -546,11 +552,13 @@ static void update_params(struct obs_x264 *obsx264, obs_data_t *settings,
 		     "\tfps_den:      %d\n"
 		     "\twidth:        %d\n"
 		     "\theight:       %d\n"
-		     "\tkeyint:       %d\n",
+		     "\tkeyint:       %d\n"
+			 "\trepeat headers:%d\n",
 		     rate_control, obsx264->params.rc.i_vbv_max_bitrate,
 		     obsx264->params.rc.i_vbv_buffer_size,
 		     (int)obsx264->params.rc.f_rf_constant, voi->fps_num,
-		     voi->fps_den, width, height, obsx264->params.i_keyint_max);
+		     voi->fps_den, width, height, obsx264->params.i_keyint_max,
+			 	repeat_headers?1:0);
 	}
 }
 
@@ -685,7 +693,7 @@ static void *obs_x264_create(obs_data_t *settings, obs_encoder_t *encoder)
 {
 	struct obs_x264 *obsx264 = bzalloc(sizeof(struct obs_x264));
 	obsx264->encoder = encoder;
-
+	
 	if (update_settings(obsx264, settings, false)) {
 		obsx264->context = x264_encoder_open(&obsx264->params);
 
@@ -765,6 +773,22 @@ static bool obs_x264_encode(void *data, struct encoder_frame *frame,
 	if (!frame || !packet || !received_packet)
 		return false;
 
+	
+	if (obsx264->encoder_feedback_info.last_sent_bitrate != obsx264->encoder_feedback_info.requested_bitrate) {
+		uint64_t now_time = os_gettime_ns();
+		if (now_time > ( obsx264->encoder_feedback_info.last_update_timestamp + 1000000000)) {
+
+			obsx264->params.rc.i_bitrate = obsx264->encoder_feedback_info.requested_bitrate;
+			obsx264->params.rc.i_vbv_max_bitrate = obsx264->encoder_feedback_info.requested_bitrate;
+			if (x264_encoder_reconfig(obsx264->context, &obsx264->params) == 0) {
+				warn("obs_x264_encode::Setting bitrate to %u OK", obsx264->params.rc.i_bitrate);
+			} else {
+				warn("obs_x264_encode::Setting bitrate to %u FAILED", obsx264->params.rc.i_bitrate);
+			}
+			obsx264->encoder_feedback_info.last_sent_bitrate = obsx264->encoder_feedback_info.requested_bitrate;
+			obsx264->encoder_feedback_info.last_update_timestamp = now_time;
+		}
+	}
 	if (frame)
 		init_pic_data(obsx264, &pic, frame);
 
@@ -810,6 +834,10 @@ static inline bool valid_format(enum video_format format)
 	return format == VIDEO_FORMAT_I420 || format == VIDEO_FORMAT_NV12 ||
 	       format == VIDEO_FORMAT_I444;
 }
+static void obs_x264_encoder_feedback(void * data, unsigned int bitrate_kbps){
+	struct obs_x264 *obsx264 = data;
+	obsx264->encoder_feedback_info.requested_bitrate = bitrate_kbps;
+}
 
 static void obs_x264_video_info(void *data, struct video_scale_info *info)
 {
@@ -840,5 +868,6 @@ struct obs_encoder_info obs_x264_encoder = {
 	.get_extra_data = obs_x264_extra_data,
 	.get_sei_data = obs_x264_sei,
 	.get_video_info = obs_x264_video_info,
+	.encoder_feedback = obs_x264_encoder_feedback,
 	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
 };
