@@ -79,3 +79,7 @@ add_subdirectory(obs-transitions)
 add_subdirectory(obs-text)
 add_subdirectory(rtmp-services)
 add_subdirectory(text-freetype2)
+
+if(BUILD_ZIXI_OUTPUT)
+	add_subdirectory(zixi-output)
+endif()
