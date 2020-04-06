@@ -13,6 +13,11 @@ OBS Studio <https://obsproject.com>
    :alt: OBS Studio Discord Server
    :target: https://obsproject.com/discord
 
+Zixi plugin for OBS
+-------------------
+All zixi plugin changes are present under Branch_zixi_feature_OBS_VERSION
+Please make sure you have checked out the proper branch and not master
+
 What is OBS Studio?
 -------------------
 
