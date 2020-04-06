@@ -10,48 +10,41 @@ struct zixi_service {
 	bool    zixi_bonding;
 };
 
-static void zixi_service_update(void *data, obs_data_t *settings);
+
 
 static const char *zixi_service_name(void *unused)
 {
 	UNUSED_PARAMETER(unused);
 	return obs_module_text("ZixiServer");
 }
-static void zixi_service_update_ex(void *data, obs_data_t *settings, bool set_defaults);
-
-static void *zixi_service_create(obs_data_t *settings, obs_service_t *service)
-{
-	struct zixi_service *data = bzalloc(sizeof(struct zixi_service));
-	zixi_service_update_ex(data, settings,true);
-
-	UNUSED_PARAMETER(service);
-	return data;
-}
-
-static void zixi_service_update_ex(void *data, obs_data_t *settings, bool set_defaults) {
-	struct zixi_service* service = data;
+static void zixi_service_update(void *data, obs_data_t *settings) {
+	struct zixi_service *service = data;
 	bfree(service->zixi_url);
 	bfree(service->zixi_password);
 	bfree(service->zixi_encryption_key);
 
 	service->zixi_url = bstrdup(obs_data_get_string(settings, "zixi_url"));
-	service->zixi_password = bstrdup(obs_data_get_string(settings, "zixi_password"));
-	service->zixi_encryption_key = bstrdup(obs_data_get_string(settings, "zixi_encryption_key"));
-	service->zixi_encoder_feedback = obs_data_get_bool(settings, "zixi_encoder_feedback");
+	service->zixi_password =
+		bstrdup(obs_data_get_string(settings, "zixi_password"));
+	service->zixi_encryption_key =
+		bstrdup(obs_data_get_string(settings, "zixi_encryption_key"));
+	service->zixi_encoder_feedback =
+		obs_data_get_bool(settings, "zixi_encoder_feedback");
 	service->zixi_bonding = obs_data_get_bool(settings, "zixi_bonding");
 
-	if (set_defaults) {
-		service->zixi_encryption_type = 3;
-		obs_data_set_int(settings, "zixi_encryption_id",3);
-		service->zixi_latency_id = 6;
-		obs_data_set_int(settings, "zixi_latency_id",6);
-	} else {
-		service->zixi_encryption_type = obs_data_get_int(settings, "zixi_encryption_id");
-		service->zixi_latency_id = obs_data_get_int(settings, "zixi_latency_id");
-	}
+	service->zixi_encryption_type =
+		obs_data_get_int(settings, "zixi_encryption_id");
+	service->zixi_latency_id =
+		obs_data_get_int(settings, "zixi_latency_id");
 }
-static void zixi_service_update(void *data , obs_data_t *settings) {
-	zixi_service_update_ex(data, settings, false);
+
+static void *zixi_service_create(obs_data_t *settings, obs_service_t *service)
+{
+	struct zixi_service *data = bzalloc(sizeof(struct zixi_service));
+	zixi_service_update(data, settings,true);
+
+	UNUSED_PARAMETER(service);
+	return data;
 }
 
 static void zixi_service_destroy(void *data) {

@@ -216,6 +216,9 @@ OBSBasic::OBSBasic(QWidget *parent)
 	ui->setupUi(this);
 	ui->previewDisabledWidget->setVisible(false);
 	ui->contextContainer->setStyle(new OBSProxyStyle);
+#ifndef ENABLE_ZIXI_SUPPORT
+	ui->actionGetZixi->setVisible(false);
+#endif 
 
 	startingDockLayout = saveState();
 
@@ -1949,15 +1952,13 @@ void OBSBasic::OBSInit()
 	delete ui->actionShowCrashLogs;
 	delete ui->actionUploadLastCrashLog;
 	delete ui->menuCrashLogs;
-	delete ui->actionCheckForUpdates;
 	ui->actionShowCrashLogs = nullptr;
 	ui->actionUploadLastCrashLog = nullptr;
 	ui->menuCrashLogs = nullptr;
-	ui->actionCheckForUpdates = nullptr;
-#elif _WIN32 || __APPLE__
-	if (App()->IsUpdaterDisabled())
-		ui->actionCheckForUpdates->setEnabled(false);
+
 #endif
+	delete ui->actionCheckForUpdates;
+	ui->actionCheckForUpdates = nullptr;
 
 	OnFirstLoad();
 
@@ -3512,6 +3513,8 @@ void OBSBasic::TimedCheckForUpdates()
 
 void OBSBasic::CheckForUpdates(bool manualUpdate)
 {
+	return;
+
 #ifdef UPDATE_SPARKLE
 	trigger_sparkle_update();
 #elif _WIN32
@@ -3529,7 +3532,8 @@ void OBSBasic::CheckForUpdates(bool manualUpdate)
 
 void OBSBasic::updateCheckFinished()
 {
-	ui->actionCheckForUpdates->setEnabled(true);
+	if (ui->actionCheckForUpdates != nullptr)
+		ui->actionCheckForUpdates->setEnabled(true);
 }
 
 void OBSBasic::DuplicateSelectedScene()
@@ -8029,6 +8033,22 @@ void OBSBasic::on_actionShowAbout_triggered()
 	about->show();
 
 	about->setAttribute(Qt::WA_DeleteOnClose, true);
+}
+
+void OBSBasic::on_actionGetZixi_triggered()
+{
+	QUrl zixi_url("https://portal.zixi.com/free/zixi_obs_plugin_installer-win-x64.exe");
+
+	int failed = -1;
+	if (QDesktopServices::openUrl(zixi_url)) {
+		failed = 0;
+	} else {
+		failed = 1;
+	}
+	
+	if (failed != 0) {
+		blog(LOG_ERROR, "Failed to open browser for zixi feeder download");
+	}
 }
 
 void OBSBasic::ResizeOutputSizeOfSource()

@@ -63,7 +63,7 @@ UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 	// So only check there is a URL
 	char const *serviceType = obs_service_get_type(service);
 	bool isCustomUrlService = (strcmp(serviceType, "rtmp_custom") == 0);
-
+	bool isZixiService = (strcmp(serviceType, "zixi_service") == 0);
 	char const *streamUrl = obs_service_get_url(service);
 	char const *streamKey = obs_service_get_key(service);
 
@@ -75,15 +75,22 @@ UIValidation::StreamSettingsConfirmation(QWidget *parent, OBSService service)
 		return StreamSettingsAction::ContinueStream;
 
 	QString msg;
-
-	if (!hasStreamUrl && !hasStreamKey) {
-		msg = QTStr("Basic.Settings.Stream.MissingUrlAndApiKey");
-	} else if (!hasStreamKey) {
-		msg = QTStr("Basic.Settings.Stream.MissingStreamKey");
+	if (isZixiService) {
+		if (!hasStreamUrl) {
+			msg = QTStr("Basic.Settings.Stream.MissingUrl");
+		} else {
+			return StreamSettingsAction::ContinueStream;
+		}
 	} else {
-		msg = QTStr("Basic.Settings.Stream.MissingUrl");
+		if (!hasStreamUrl && !hasStreamKey) {
+			msg = QTStr(
+				"Basic.Settings.Stream.MissingUrlAndApiKey");
+		} else if (!hasStreamKey) {
+			msg = QTStr("Basic.Settings.Stream.MissingStreamKey");
+		} else {
+			msg = QTStr("Basic.Settings.Stream.MissingUrl");
+		}
 	}
-
 	QMessageBox messageBox(parent);
 	messageBox.setWindowTitle(
 		QTStr("Basic.Settings.Stream.MissingSettingAlert"));
