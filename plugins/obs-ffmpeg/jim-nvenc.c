@@ -332,6 +332,7 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	const char *profile = obs_data_get_string(settings, "profile");
 	bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
 	bool lookahead = obs_data_get_bool(settings, "lookahead");
+	bool repeat_headers = obs_data_get_bool(settings, "repeat_headers");
 	int bf = (int)obs_data_get_int(settings, "bf");
 	bool vbr = astrcmpi(rc, "VBR") == 0;
 	NVENCSTATUS err;

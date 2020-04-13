@@ -477,6 +477,7 @@ void nvenc_defaults(obs_data_t *settings)
 	obs_data_set_default_bool(settings, "psycho_aq", true);
 	obs_data_set_default_int(settings, "gpu", 0);
 	obs_data_set_default_int(settings, "bf", 2);
+	obs_data_set_default_bool(settings, "repeat_headers",false);
 }
 
 static bool rate_control_modified(obs_properties_t *ppts, obs_property_t *p,
