@@ -1029,6 +1029,12 @@ static bool is_lib_h264(obs_output_t *output)
 	const char *encoder_name = obs_encoder_get_id(encoder);
 	return strcmp(encoder_name, "obs_x264") == 0;
 }
+static bool is_nvenc(obs_output_t *output)
+{
+	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
+	const char *encoder_name = obs_encoder_get_id(encoder);
+	return strcmp(encoder_name, "jim_nvenc") == 0;
+}
 
 static bool zixi_set_encoder_params(obs_output_t *output,
 				    unsigned int *vbitrate,
@@ -1042,7 +1048,7 @@ static bool zixi_set_encoder_params(obs_output_t *output,
 	*supports_encoder_feedback = obs_encoder_get_caps(encoder) &
 				     OBS_ENCODER_CAP_DYN_BITRATE;
 
-	if (is_lib_h264(output)) {
+	if (is_lib_h264(output) ||is_nvenc(output)) {
 		obs_data_t *settings = obs_encoder_get_settings(encoder);
 		obs_data_set_bool(settings, "repeat_headers", true);
 		local_vbitrate = obs_data_get_int(settings, "bitrate") * 1000;
