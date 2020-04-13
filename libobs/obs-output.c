@@ -1954,7 +1954,8 @@ static inline void convert_flags(const struct obs_output *output,
 bool obs_output_can_begin_data_capture(const obs_output_t *output,
 				       uint32_t flags)
 {
-	bool encoded, has_video, has_audio, has_service;
+	bool encoded = false, has_video = false, has_audio = false,
+	     has_service = false;
 
 	if (!obs_output_valid(output, "obs_output_can_begin_data_capture"))
 		return false;

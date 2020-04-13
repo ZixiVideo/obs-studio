@@ -1040,12 +1040,21 @@ static void receive_video(void *param, struct video_data *frame)
 	if (!encoder->start_ts)
 		encoder->start_ts = frame->timestamp;
 
+	bool really_do_encode = true;
+	for (size_t outputs_iter = 0; really_do_encode && outputs_iter < encoder->outputs.num; ++outputs_iter) {
+		obs_output_t* output = encoder->outputs.array[outputs_iter];
+		if (output->active && output->info.source_input_control) {
+				really_do_encode = output->info.source_input_control(output->context.data);
+		}
+	}
+
 	enc_frame.frames = 1;
 	enc_frame.pts = encoder->cur_pts;
 
-	if (do_encode(encoder, &enc_frame))
-		encoder->cur_pts += encoder->timebase_num;
-
+	if (really_do_encode)
+		if (do_encode(encoder, &enc_frame))
+			encoder->cur_pts += encoder->timebase_num;
+		
 wait_for_audio:
 	profile_end(receive_video_name);
 }
@@ -1483,4 +1492,10 @@ bool obs_encoder_paused(const obs_encoder_t *encoder)
 	return obs_encoder_valid(encoder, "obs_encoder_paused")
 		       ? os_atomic_load_bool(&encoder->paused)
 		       : false;
+}
+
+void obs_encoder_feedback(obs_encoder_t * encoder, unsigned int bitrate) {
+	if (obs_encoder_valid(encoder, "obs_encoder_feedback") && encoder->orig_info.encoder_feedback)
+		encoder->orig_info.encoder_feedback(encoder->context.data,bitrate);
+
 }
