@@ -69,6 +69,9 @@ struct obs_output_info {
 	float (*get_congestion)(void *data);
 	int (*get_connect_time_ms)(void *data);
 
+	/** Notify source frame whether output is congested */
+	bool(*source_input_control)(void * data);
+
 	/* only used with encoded outputs, separated with semicolon */
 	const char *encoded_video_codecs;
 	const char *encoded_audio_codecs;

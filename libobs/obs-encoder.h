@@ -87,6 +87,16 @@ struct encoder_packet {
 	obs_encoder_t *encoder;
 };
 
+/** Common data for dynamically setting bitrate */
+struct encoder_feedback_info {
+	/** Current target bitrate to be set */
+	volatile uint32_t	target_bitrate;
+	/** Last set bitrate */
+	uint32_t		current_bitrate;
+	/** Last timestamp of update */
+	uint64_t		last_update_ns;
+};
+
 /** Encoder input frame */
 struct encoder_frame {
 	/** Data for the frame/audio */
@@ -262,6 +272,16 @@ struct obs_encoder_info {
 			       uint64_t lock_key, uint64_t *next_key,
 			       struct encoder_packet *packet,
 			       bool *received_packet);
+
+
+	/**
+	 * Dynamically sets target bitrate of the encoder
+	 * set OBS_ENCODER_SUPPORTS_DYNAMIC_BITRATE as a cap of the encoder to enable
+	 * 
+	 * @param[in]	data		Pointer from create (or null)
+	 * @param[in]   bitrate		New target bitrate value for the encoder (kbps)
+	 */
+	void (*encoder_feedback)(void * data, unsigned int bitrate);
 };
 
 EXPORT void obs_register_encoder_s(const struct obs_encoder_info *info,
