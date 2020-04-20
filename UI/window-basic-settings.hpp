@@ -170,6 +170,7 @@ private:
 	void SaveEncoder(QComboBox *combo, const char *section,
 			 const char *value);
 
+	void ReloadService();
 	inline bool Changed() const
 	{
 		return generalChanged || outputsChanged || stream1Changed ||
@@ -230,6 +231,7 @@ private:
 	/* stream */
 	void InitStreamPage();
 	inline bool IsCustomService() const;
+	inline bool IsZixiService() const;
 	void LoadServices(bool showAll);
 	void OnOAuthStreamKeyConnected();
 	void OnAuthConnected();
@@ -246,6 +248,8 @@ private slots:
 	void on_useStreamKey_clicked();
 	void on_useAuth_toggled();
 
+	void on_zixiFwdEncryptionType_currentIndexChanged(int idx);
+	void on_zixiFwd_toggled();
 private:
 	/* output */
 	void LoadSimpleOutputSettings();
@@ -308,7 +312,9 @@ private:
 	QIcon GetAdvancedIcon() const;
 
 	int CurrentFLVTrack();
-
+	bool IsZixiPluginLoaded();
+	void DisableZixiControls(bool);
+	void populateZixiCombos();
 private slots:
 	void on_theme_activated(int idx);
 
