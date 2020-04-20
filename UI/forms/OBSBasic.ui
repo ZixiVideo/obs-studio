@@ -474,6 +474,8 @@
     <addaction name="actionCheckForUpdates"/>
     <addaction name="actionShowAbout"/>
     <addaction name="separator"/>
+    <addaction name="separator"/>
+    <addaction name="actionBasic_MainMenu_Help_GetZixi"/>
    </widget>
    <widget class="QMenu" name="menuBasic_MainMenu_Edit">
     <property name="title">
@@ -2003,6 +2005,11 @@
    </property>
    <property name="text">
     <string>Basic.MainMenu.View.ContextBar</string>
+   </property>
+  </action>
+  <action name="actionBasic_MainMenu_Help_GetZixi">
+   <property name="text">
+    <string>Basic.MainMenu.Help.GetZixi</string>
    </property>
   </action>
  </widget>
