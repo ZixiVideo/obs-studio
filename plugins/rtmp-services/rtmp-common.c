@@ -8,7 +8,7 @@
 #include "younow.h"
 
 #ifdef ENABLE_ZIXI_SUPPORT
-#include "../zixi-output/zixi-output.h"
+#include "../zixi-output/zixi-constants.h"
 #endif
 struct rtmp_common {
 	char *service;
