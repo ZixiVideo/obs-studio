@@ -1177,7 +1177,33 @@
                </property>
               </widget>
              </item>
+             <item row="7" column="0">
+              <widget class="QLabel" name="twitchAddonLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.TTVAddon</string>
+               </property>
+               <property name="buddy">
+                <cstring>twitchAddonDropdown</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="7" column="1">
+              <widget class="QComboBox" name="twitchAddonDropdown"/>
+             </item>
              <item row="8" column="0">
+              <widget class="QLabel" name="mixerAddonLabel">
+               <property name="text">
+                <string>Basic.Settings.Stream.MixerAddon</string>
+               </property>
+               <property name="buddy">
+                <cstring>mixerAddonDropdown</cstring>
+               </property>
+              </widget>
+             </item>
+             <item row="8" column="1">
+              <widget class="QComboBox" name="mixerAddonDropdown"/>
+             </item>
+             <item row="9" column="0">
               <widget class="QLabel" name="authUsernameLabel">
                <property name="text">
                 <string>Basic.Settings.Stream.Custom.Username</string>
@@ -1232,16 +1258,24 @@
                </layout>
               </widget>
              </item>
-             <item row="7" column="1">
-              <widget class="QComboBox" name="twitchAddonDropdown"/>
-             </item>
-             <item row="7" column="0">
-              <widget class="QLabel" name="twitchAddonLabel">
-               <property name="text">
-                <string>Basic.Settings.Stream.TTVAddon</string>
+             <item row="11" column="0">
+              <widget class="Line" name="line">
+               <property name="orientation">
+                <enum>Qt::Horizontal</enum>
                </property>
-               <property name="buddy">
-                <cstring>twitchAddonDropdown</cstring>
+              </widget>
+             </item>
+             <item row="13" column="0">
+              <widget class="QLabel" name="zixiFwdVersionLabel">
+               <property name="text">
+                <string>Basic.Settings.ZixiVersion</string>
+               </property>
+              </widget>
+             </item>
+             <item row="13" column="1">
+              <widget class="QLineEdit" name="zixiFwdVersion">
+               <property name="enabled">
+                <bool>false</bool>
                </property>
               </widget>
              </item>
@@ -1256,6 +1290,99 @@
               <widget class="QLabel" name="enforceSettingsLabel">
                <property name="text">
                 <string notr="true"/>
+               </property>
+              </widget>
+             </item>
+             <item row="14" column="0">
+              <widget class="QLabel" name="zixiFwdUrlLabel">
+               <property name="text">
+                <string>Basic.Settings.ZixiUrl</string>
+               </property>
+              </widget>
+             </item>
+             <item row="14" column="1">
+              <widget class="QLineEdit" name="zixiFwdUrl"/>
+             </item>
+             <item row="15" column="0">
+              <widget class="QLabel" name="zixiFwdPasswordLabel">
+               <property name="text">
+                <string>Basic.Settings.ZixiPassword</string>
+               </property>
+              </widget>
+             </item>
+             <item row="15" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_26">
+               <item>
+                <widget class="QLineEdit" name="zixiFwdPassword"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="zixiFwdPasswordShow">
+                 <property name="text">
+                  <string>Show</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="16" column="0">
+              <widget class="QLabel" name="zixiFwdLatencyLabel">
+               <property name="text">
+                <string>Basic.Settings.ZixiLatency</string>
+               </property>
+              </widget>
+             </item>
+             <item row="16" column="1">
+              <widget class="QComboBox" name="zixiFwdLatency"/>
+             </item>
+             <item row="17" column="0">
+              <widget class="QLabel" name="zixiFwdEncryptionTypeLabel">
+               <property name="text">
+                <string>Basic.Settings.EncryptionType</string>
+               </property>
+              </widget>
+             </item>
+             <item row="17" column="1">
+              <widget class="QComboBox" name="zixiFwdEncryptionType"/>
+             </item>
+             <item row="18" column="0">
+              <widget class="QLabel" name="zixiFwdEncryptionKeyLabel">
+               <property name="text">
+                <string>Basic.Settings.EncryptionKey</string>
+               </property>
+              </widget>
+             </item>
+             <item row="18" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayout_27">
+               <item>
+                <widget class="QLineEdit" name="zixiFwdEncryptionKey"/>
+               </item>
+               <item>
+                <widget class="QPushButton" name="zixiFwdEncryptionKeyShow">
+                 <property name="text">
+                  <string>Show</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+             <item row="11" column="1">
+              <widget class="QCheckBox" name="zixiFwd">
+               <property name="text">
+                <string>Basic.Settings.ZixiForward</string>
+               </property>
+              </widget>
+             </item>
+             <item row="20" column="1">
+              <widget class="QCheckBox" name="zixiFwdEnableBonding">
+               <property name="text">
+                <string>Basic.Settings.ZixiBonding</string>
+               </property>
+              </widget>
+             </item>
+             <item row="19" column="1">
+              <widget class="QCheckBox" name="zixiFwdEncoderFeedback">
+               <property name="text">
+                <string>Basic.Settings.ZixiEncoderFeedback</string>
                </property>
               </widget>
              </item>

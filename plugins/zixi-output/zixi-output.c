@@ -8,7 +8,7 @@
 
 #include "zixi-constants.h"
 #include "zixi-dynload.h"
-#include "zixi-output.h"
+#include "zixi-constants.h"
 
 #define do_log(level, format, ...)                 \
 	blog(level, "[zixi stream: '%s'] " format, \
