@@ -662,6 +662,7 @@ private slots:
 	SourceTreeItem *GetItemWidgetFromSceneItem(obs_sceneitem_t *sceneItem);
 
 	void on_actionShowAbout_triggered();
+	void on_actionGetZixi_triggered();
 
 	void AudioMixerCopyFilters();
 	void AudioMixerPasteFilters();

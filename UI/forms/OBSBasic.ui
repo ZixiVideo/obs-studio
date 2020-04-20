@@ -475,7 +475,7 @@
     <addaction name="actionShowAbout"/>
     <addaction name="separator"/>
     <addaction name="separator"/>
-    <addaction name="actionBasic_MainMenu_Help_GetZixi"/>
+    <addaction name="actionGetZixi"/>
    </widget>
    <widget class="QMenu" name="menuBasic_MainMenu_Edit">
     <property name="title">
@@ -2008,6 +2008,7 @@
    </property>
   </action>
   <action name="actionBasic_MainMenu_Help_GetZixi">
+  <action name="actionGetZixi">
    <property name="text">
     <string>Basic.MainMenu.Help.GetZixi</string>
    </property>
