@@ -1387,8 +1387,9 @@ void zixi_output_update(void *data, obs_data_t *settings)
 	struct zixi_stream *stream = data;
 	struct obs_service_t *service = obs_output_get_service(stream->output);
 	settings = obs_service_get_settings(service);
-
+	
 	const char *service_name = obs_service_get_name(service);
+	stream->use_auto_rtmp = strcmp(service_name, "zixi-service" )!= 0;
 	stream->bonding =
 		obs_data_get_bool(settings, ZIXI_SERVICE_PROP_ENABLE_BONDING);
 	obs_properties_t *l = obs_service_properties(service);
@@ -1412,9 +1413,7 @@ void zixi_output_update(void *data, obs_data_t *settings)
 	stream->encoder_feedback_enabled =
 		obs_data_get_bool(settings, "zixi_encoder_feedback");
 	stream->bonding = obs_data_get_bool(settings, "zixi_bonding");
-	stream->use_auto_rtmp = obs_data_get_bool(settings, "zixi_fwd");
-	stream->use_auto_rtmp = true;
-	dstr_copy(&stream->url, "zixi://127.0.0.1/temp_obs");
+	
 	if (stream->use_auto_rtmp) {
 		dstr_copy(&stream->auto_rtmp_url,
 			  obs_service_get_url(service));
