@@ -634,7 +634,7 @@ void OBSBasicSettings::on_service_currentIndexChanged(int)
 
 	if (force_load_stream_settings)
 	{
-		ReloadService();
+		//ReloadService();
 		
 	}
 }
