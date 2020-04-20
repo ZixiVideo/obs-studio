@@ -250,7 +250,10 @@ private slots:
 
 	void on_zixiFwdEncryptionType_currentIndexChanged(int idx);
 	void on_zixiFwd_toggled();
-private:
+	void on_zixiFwdPasswordShow_clicked();
+	void on_zixiFwdEncryptionKeyShow_clicked();
+
+ private:
 	/* output */
 	void LoadSimpleOutputSettings();
 	void LoadAdvOutputStreamingSettings();

@@ -126,6 +126,27 @@ bool OBSBasicSettings::IsZixiPluginLoaded()
 	obs_properties_t * zixi_props = obs_get_output_properties("zixi_output");
 	return !!zixi_props;
 }
+void OBSBasicSettings::on_zixiFwdPasswordShow_clicked()
+{
+	if (ui->zixiFwdPassword->echoMode() == QLineEdit::Password) {
+		ui->zixiFwdPassword->setEchoMode(QLineEdit::Normal);
+		ui->zixiFwdPasswordShow->setText(QTStr("Hide"));
+	} else {
+		ui->zixiFwdPassword->setEchoMode(QLineEdit::Password);
+		ui->zixiFwdPasswordShow->setText(QTStr("Show"));
+	}
+}
+
+void OBSBasicSettings::on_zixiFwdEncryptionKeyShow_clicked()
+{
+	if (ui->zixiFwdEncryptionKey->echoMode() == QLineEdit::Password) {
+		ui->zixiFwdEncryptionKey->setEchoMode(QLineEdit::Normal);
+		ui->zixiFwdEncryptionKeyShow->setText(QTStr("Hide"));
+	} else {
+		ui->zixiFwdEncryptionKey->setEchoMode(QLineEdit::Password);
+		ui->zixiFwdEncryptionKeyShow->setText(QTStr("Show"));
+	}
+}
 
 void OBSBasicSettings::on_zixiFwd_toggled()
 {
