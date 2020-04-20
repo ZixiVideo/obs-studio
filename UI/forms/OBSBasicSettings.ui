@@ -1313,7 +1313,11 @@
              <item row="15" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_26">
                <item>
-                <widget class="QLineEdit" name="zixiFwdPassword"/>
+                <widget class="QLineEdit" name="zixiFwdPassword">
+                 <property name="echoMode">
+                  <enum>QLineEdit::Password</enum>
+                 </property>
+                </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zixiFwdPasswordShow">
@@ -1354,7 +1358,11 @@
              <item row="18" column="1">
               <layout class="QHBoxLayout" name="horizontalLayout_27">
                <item>
-                <widget class="QLineEdit" name="zixiFwdEncryptionKey"/>
+                <widget class="QLineEdit" name="zixiFwdEncryptionKey">
+                 <property name="echoMode">
+                  <enum>QLineEdit::Password</enum>
+                 </property>
+                </widget>
                </item>
                <item>
                 <widget class="QPushButton" name="zixiFwdEncryptionKeyShow">
