@@ -216,6 +216,9 @@ OBSBasic::OBSBasic(QWidget *parent)
 	ui->setupUi(this);
 	ui->previewDisabledWidget->setVisible(false);
 	ui->contextContainer->setStyle(new OBSProxyStyle);
+#ifndef ENABLE_ZIXI_SUPPORT
+	ui->actionGetZixi->setVisible(false);
+#endif 
 
 	startingDockLayout = saveState();
 
@@ -8023,6 +8026,29 @@ void OBSBasic::on_actionShowAbout_triggered()
 	about->show();
 
 	about->setAttribute(Qt::WA_DeleteOnClose, true);
+}
+
+void OBSBasic::on_actionGetZixi_triggered()
+{
+#ifdef WIN32
+#if ARCH_BITS == 64
+	QUrl zixi_url("http://downloads.zixi.com/free/feeder_interface/windows/windows_download.html");
+#else // ARCH_BITS
+	QUrl zixi_url("http://downloads.zixi.com/free/feeder_interface/windows/windows32_download.html");
+#endif // ARCH_BITS
+#elif __APPLE__
+	QUrl zixi_url("http://downloads.zixi.com/free/feeder_interface/osx/osx_download.html");
+#else
+	QUrl zixi_url("http://downloads.zixi.com/free/feeder_interface/linux/linux_download.html");
+#endif
+	int failed = -1;
+	if (QDesktopServices::openUrl(zixi_url)) {
+		failed = 0;
+	} else {
+		failed = 1;
+	}
+
+	int m = failed;
 }
 
 void OBSBasic::ResizeOutputSizeOfSource()
