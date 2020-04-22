@@ -1096,7 +1096,6 @@ struct obs_encoder {
 	DARRAY(struct encoder_callback) callbacks;
 
 	struct pause_data pause;
-
 	const char *profile_encoder_encode_name;
 	char *last_error_message;
 };
