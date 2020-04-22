@@ -260,7 +260,7 @@ static void zixi_encoder_feedback(int total_bps, bool force_iframe, void *param)
 			obs_encoder_t *encoder =
 				obs_output_get_video_encoder(stream->output);
 			// convert to KBPS
-			// 	obs_encoder_feedback(encoder, to_encoder / 1000);
+			obs_encoder_feedback(encoder, to_encoder / 1000);
 		}
 
 		pthread_mutex_lock(&stream->encoder_control_mutex);
@@ -399,7 +399,7 @@ static int send_packet(struct zixi_stream *stream,
 			os_gettime_ns() - stream->auto_bonding_last_time_scan;
 		stream->auto_bonding_last_time_scan = os_gettime_ns();
 		if (zixi_auto_bonding_scan(stream) == ZIXI_ERROR_OK) {
-			debug("zixi_auto_bonding_scan - ok");
+			// debug("zixi_auto_bonding_scan - ok");
 		} else {
 			warn("zixi_auto_bonding_scan - failed");
 		}
@@ -1092,11 +1092,26 @@ static bool zixi_stream_start(void *data)
 
 	if (!obs_output_can_begin_data_capture(stream->output, 0))
 		return false;
-	bool encoder_supports_encoder_feedback = false;
+	
+	bool encoder_supports_encoder_feedback =
+		obs_encoder_get_caps(
+			obs_output_get_video_encoder(stream->output)) &
+		OBS_ENCODER_CAP_DYN_BITRATE;
+
 	zixi_set_encoder_params(stream->output, &vbitrate, &max_vbitrate,
 				&encoder_supports_encoder_feedback);
 	stream->max_video_bitrate = max_vbitrate;
+	
 	stream->encoder_feedback_enabled &= encoder_supports_encoder_feedback;
+	if (stream->encoder_feedback_enabled) {
+		if (encoder_supports_encoder_feedback)
+			info("zixi_steam_start - encoder feedback is enabled via connection - OK");
+		else
+			info("zixi_steam_start - encoder feedback is enabled via connection - encoder doesnt support, disabling...");
+	} else {
+		info("zixi_steam_start - encoder feedback is disabled via connection");
+	}
+	
 
 	audio_t *audio = obs_get_audio();
 	uint32_t channels = audio_output_get_channels(audio);
@@ -1122,7 +1137,7 @@ static bool zixi_stream_start(void *data)
 	if (!obs_output_initialize_encoders(stream->output, 0))
 		return false;
 
-	info("starting connect thread");
+	info("zixi_steam_start - starting connect thread");
 	os_atomic_set_bool(&stream->connecting, true);
 	return pthread_create(&stream->connect_thread, NULL,
 			      connect_thread_func, stream) == 0;
@@ -1376,7 +1391,7 @@ static float zixi_get_congestion(void *data)
 		} else {
 			r = 0.0f;
 		}
-		info("zixi_get_congesion -> returning %.02f", r);
+		//debug("zixi_get_congesion -> returning %.02f", r);
 	}
 
 	return r;

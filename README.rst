@@ -17,11 +17,11 @@ Zixi plugin branch for OBS Studio
 =================================
  - Adds native Zixi output to OBS for robust low latency streaming [ done ]
 
- - Supports streaming to AWS MediaConnect [ not present yet ]
+ - Supports streaming to AWS MediaConnect [ done ]
  
  - Allow bonding multiple network connections [ done ]
  
- - Adjusts encoder bitrate according to network conditions, when using libx264 [ not present yet ]
+ - Adjusts encoder bitrate according to network conditions, when using libx264 [ done ]
  
  - As to support some of the above features a core change to OBS core libraries was needed.
 	As a side effect auto update is disabled in this branch
