@@ -1958,6 +1958,20 @@ EXPORT uint64_t obs_output_get_pause_offset(obs_output_t *output);
 /* ------------------------------------------------------------------------- */
 /* Encoders */
 
+/**
+ *	A common structure to hold encoder feedback info
+ *
+ *	last_sent_bitrate	- in kbps, the last value of bitrate sent to the encoder
+ *	requested_bitrate	- in kbps, last value that OBS/network layer asked the encoder to produce
+ *	last_update_timestamp	- last time the encoder bitrate value was updated
+ */
+struct obs_encoder_feedback_info {
+	unsigned int last_sent_bitrate;
+	unsigned int requested_bitrate;
+	uint64_t last_update_timestamp;
+};
+
+
 EXPORT const char *obs_encoder_get_display_name(const char *id);
 
 /**
@@ -2104,6 +2118,8 @@ EXPORT const char *obs_encoder_get_id(const obs_encoder_t *encoder);
 
 EXPORT uint32_t obs_get_encoder_caps(const char *encoder_id);
 EXPORT uint32_t obs_encoder_get_caps(const obs_encoder_t *encoder);
+
+EXPORT void obs_encoder_feedback(obs_encoder_t * encoder, unsigned int bitrate);
 
 #ifndef SWIG
 /** Duplicates an encoder packet */
