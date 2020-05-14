@@ -88,12 +88,9 @@ static void rtmp_common_update_ex(void *data, obs_data_t *settings, bool set_def
 	bfree(service->zixi_password);
 	bfree(service->zixi_encryption_key);
 
-	//service->zixi_fwd = obs_data_get_bool(settings, "zixi_fwd");
-	//service->zixi_url = bstrdup(obs_data_get_string(settings, "zixi_url"));
-	//service->zixi_password = bstrdup(obs_data_get_string(settings, "zixi_password"));
-	service->zixi_fwd = true;
-	service->zixi_url = bstrdup("zixi://127.0.0.1/obs_hello");
-	service->zixi_password = NULL;
+	service->zixi_fwd = obs_data_get_bool(settings, "zixi_fwd");
+	service->zixi_url = bstrdup(obs_data_get_string(settings, "zixi_url"));
+	service->zixi_password = bstrdup(obs_data_get_string(settings, "zixi_password"));
 	service->zixi_encryption_key = bstrdup(obs_data_get_string(settings, "zixi_encryption_key"));
 	service->zixi_encoder_feedback = obs_data_get_bool(settings, "zixi_encoder_feedback");
 	service->zixi_bonding = obs_data_get_bool(settings, "zixi_bonding");
