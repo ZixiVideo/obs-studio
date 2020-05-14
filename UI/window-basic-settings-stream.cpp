@@ -263,6 +263,7 @@ void OBSBasicSettings::LoadStream1Settings()
 		on_zixiFwd_toggled();
 		on_zixiFwdEncryptionType_currentIndexChanged(
 			zixi_encryption_id);
+		loading = false;
 		return;
 	} else
 #endif
