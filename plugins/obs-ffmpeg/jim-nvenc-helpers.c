@@ -174,12 +174,14 @@ bool init_nvenc(obs_encoder_t *encoder)
 	return success;
 }
 
-extern struct obs_encoder_info nvenc_info;
+extern struct obs_encoder_info nvenc_h264_info;
+extern struct obs_encoder_info nvenc_hevc_info;
 
 void jim_nvenc_load(void)
 {
 	pthread_mutex_init(&init_mutex, NULL);
-	obs_register_encoder(&nvenc_info);
+	obs_register_encoder(&nvenc_h264_info);
+	obs_register_encoder(&nvenc_hevc_info);
 }
 
 void jim_nvenc_unload(void)

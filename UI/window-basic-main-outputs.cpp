@@ -365,8 +365,8 @@ void SimpleOutput::LoadRecordingPreset()
 		} else if (strcmp(encoder, SIMPLE_ENCODER_AMD) == 0) {
 			LoadRecordingPreset_h264("amd_amf_h264");
 		} else if (strcmp(encoder, SIMPLE_ENCODER_NVENC) == 0) {
-			const char *id = EncoderAvailable("jim_nvenc")
-						 ? "jim_nvenc"
+			const char *id = EncoderAvailable("jim_nvenc_h264")
+						 ? "jim_nvenc_h264"
 						 : "ffmpeg_nvenc";
 			LoadRecordingPreset_h264(id);
 		}
@@ -391,7 +391,7 @@ SimpleOutput::SimpleOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 		LoadStreamingPreset_h264("amd_amf_h264");
 
 	} else if (strcmp(encoder, SIMPLE_ENCODER_NVENC) == 0) {
-		const char *id = EncoderAvailable("jim_nvenc") ? "jim_nvenc"
+		const char *id = EncoderAvailable("jim_nvenc_h264") ? "jim_nvenc_h264"
 							       : "ffmpeg_nvenc";
 		LoadStreamingPreset_h264(id);
 
@@ -748,6 +748,16 @@ bool SimpleOutput::SetupStreaming(obs_service_t *service)
 		}
 	}
 
+	if (strcmp(type, "rtmp_output") == 0) {
+		const char * v_encoder_name =  obs_encoder_get_codec(h264Streaming);
+		if (v_encoder_name != nullptr && strcmp(v_encoder_name, "h264") != 0) {
+			blog(LOG_WARNING,
+			     "Creation of stream output type '%s' "
+			     "failed - RTMP does not support HEVC",
+			     type);
+			return false;
+		}
+	}
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
 		streamDelayStarting.Disconnect();
@@ -1242,7 +1252,8 @@ void AdvancedOutput::UpdateStreamSettings()
 		obs_service_apply_encoder_settings(main->GetService(), settings,
 						   nullptr);
 
-	if (dynBitrate && astrcmpi(streamEncoder, "jim_nvenc") == 0)
+	if (dynBitrate && ((astrcmpi(streamEncoder, "jim_nvenc_h264") == 0)
+		||astrcmpi(streamEncoder, "jim_nvenc_hevc") == 0))
 		obs_data_set_bool(settings, "lookahead", false);
 
 	video_t *video = obs_get_video();
@@ -1505,7 +1516,7 @@ int AdvancedOutput::GetAudioBitrate(size_t i) const
 }
 
 bool AdvancedOutput::SetupStreaming(obs_service_t *service)
-{
+{	
 	int streamTrack =
 		config_get_int(main->Config(), "AdvOut", "TrackIndex") - 1;
 
@@ -1535,6 +1546,17 @@ bool AdvancedOutput::SetupStreaming(obs_service_t *service)
 		}
 	}
 
+	if (strcmp(type, "rtmp_output") == 0) {
+		const char *v_codec_name = obs_encoder_get_codec(h264Streaming);
+		if (v_codec_name != nullptr && strcmp(v_codec_name, "h264") != 0) {
+			blog(LOG_WARNING,
+			     "Creation of stream output type '%s' "
+			     "failed! - RTMP supports only h264 encoders",
+			     type);
+			return false;
+		}
+		
+	}
 	/* XXX: this is messy and disgusting and should be refactored */
 	if (outputType != type) {
 		streamDelayStarting.Disconnect();
