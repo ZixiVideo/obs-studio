@@ -148,6 +148,8 @@ struct zixi_stream {
 
 	uint64_t auto_bonding_last_time_scan;
 
+	bool is_hevc;
+
 	/* auto rtmp */
 	bool use_auto_rtmp;
 	struct dstr auto_rtmp_url;
@@ -731,7 +733,6 @@ static int try_connect(struct zixi_stream *stream)
 	cfg.content_aware_fec = 0;
 	cfg.fec_block_ms = 100;
 
-	char *mega_log = malloc(2555);
 	int major, mid, minor, build;
 	stream->feeder_functions.zixi_version(&major, &mid, &minor, &build);
 	info("zixi-version: %d.%d.%d", mid, minor, build);
@@ -771,9 +772,12 @@ static int try_connect(struct zixi_stream *stream)
 
 	cfg.enforce_bitrate = false;
 	info("Bitrate is set @%u\n", cfg.max_bitrate);
-	free(mega_log);
 
-	cfg.elementary_streams_config.video_codec = ZIXI_VIDEO_CODEC_H264;
+	if (stream->is_hevc)
+		cfg.elementary_streams_config.video_codec = ZIXI_VIDEO_CODEC_HEVC;
+	else
+		cfg.elementary_streams_config.video_codec =
+			ZIXI_VIDEO_CODEC_H264;
 
 	cfg.elementary_streams_config.audio_codec = ZIXI_AUDIO_CODEC_AAC;
 	cfg.elementary_streams_config.audio_channels = 2;
@@ -1005,12 +1009,7 @@ static bool is_mf_qsv(obs_output_t *output)
 	const char *encoder_name = obs_encoder_get_id(encoder);
 	return strcmp(encoder_name, "mf_h264_qsv") == 0;
 }
-static bool is_nvenc_h265(obs_output_t *output)
-{
-	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
-	const char *encoder_name = obs_encoder_get_id(encoder);
-	return strcmp(encoder_name, "obs_nvenc_h265") == 0;
-}
+
 static bool is_msdk_h265(obs_output_t *output)
 {
 	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
@@ -1029,17 +1028,25 @@ static bool is_lib_h264(obs_output_t *output)
 	const char *encoder_name = obs_encoder_get_id(encoder);
 	return strcmp(encoder_name, "obs_x264") == 0;
 }
-static bool is_nvenc(obs_output_t *output)
+static bool is_nvenc_h264(obs_output_t *output)
 {
 	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
 	const char *encoder_name = obs_encoder_get_id(encoder);
-	return strcmp(encoder_name, "jim_nvenc") == 0;
+	return strcmp(encoder_name, "jim_nvenc_h264") == 0;
+	       
+}
+static bool is_nvenc_hevc(obs_output_t *output)
+{
+	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
+	const char *encoder_name = obs_encoder_get_id(encoder);
+	return strcmp(encoder_name, "jim_nvenc_hevc") == 0;
 }
 
 static bool zixi_set_encoder_params(obs_output_t *output,
 				    unsigned int *vbitrate,
 				    unsigned int *max_vbitrate,
-				    bool *supports_encoder_feedback)
+				    bool *supports_encoder_feedback,
+					bool * is_hevc)
 {
 	obs_encoder_t *encoder = obs_output_get_video_encoder(output);
 	obs_data_t *settings = obs_encoder_get_settings(encoder);
@@ -1047,12 +1054,18 @@ static bool zixi_set_encoder_params(obs_output_t *output,
 	unsigned int local_max_vbitrate = 0;
 	*supports_encoder_feedback = obs_encoder_get_caps(encoder) &
 				     OBS_ENCODER_CAP_DYN_BITRATE;
-
-	if (is_lib_h264(output) ||is_nvenc(output)) {
+	*is_hevc = false;
+	if (is_lib_h264(output) ||is_nvenc_h264(output)) {
 		obs_data_t *settings = obs_encoder_get_settings(encoder);
 		obs_data_set_bool(settings, "repeat_headers", true);
 		local_vbitrate = obs_data_get_int(settings, "bitrate") * 1000;
 		local_max_vbitrate = 1.5 * local_vbitrate;
+	} else if (is_nvenc_hevc(output) ){
+		obs_data_t *settings = obs_encoder_get_settings(encoder);
+		obs_data_set_bool(settings, "repeat_headers", true);
+		local_vbitrate = obs_data_get_int(settings, "bitrate") * 1000;
+		local_max_vbitrate = 1.5 * local_vbitrate;
+		*is_hevc = true;
 	} else if (is_mf_qsv(output)) {
 		obs_data_t *settings = obs_encoder_get_settings(encoder);
 		local_vbitrate =
@@ -1099,7 +1112,8 @@ static bool zixi_stream_start(void *data)
 		OBS_ENCODER_CAP_DYN_BITRATE;
 
 	zixi_set_encoder_params(stream->output, &vbitrate, &max_vbitrate,
-				&encoder_supports_encoder_feedback);
+				&encoder_supports_encoder_feedback,
+			&stream->is_hevc);
 	stream->max_video_bitrate = max_vbitrate;
 	
 	stream->encoder_feedback_enabled &= encoder_supports_encoder_feedback;

@@ -71,6 +71,7 @@ struct nvenc_data {
 
 	uint8_t *sei;
 	size_t sei_size;
+	bool is_hevc;
 
 	struct obs_encoder_feedback_info encoder_feedback_info;
 };
@@ -211,7 +212,8 @@ static void nv_texture_free(struct nvenc_data *enc, struct nv_texture *nvtex)
 
 static const char *nvenc_get_name(void *type_data)
 {
-	UNUSED_PARAMETER(type_data);
+	if (type_data == 1)
+		return "NVIDIA NVENC HEVC";
 	return "NVIDIA NVENC H.264 (new)";
 }
 
@@ -255,7 +257,7 @@ static bool nvenc_update(void *data, obs_data_t *settings)
 	/* Only support reconfiguration of CBR bitrate */
 	if (enc->can_change_bitrate) {
 		int bitrate = (int)obs_data_get_int(settings, "bitrate");
-		return nvenc_update(data, bitrate);
+		return nvenc_update_bitrate(data, bitrate);
 	}
 
 	return true;
@@ -412,8 +414,10 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	NV_ENC_PRESET_CONFIG preset_config = {NV_ENC_PRESET_CONFIG_VER,
 					      {NV_ENC_CONFIG_VER}};
 
-	err = nv.nvEncGetEncodePresetConfig(enc->session,
-					    NV_ENC_CODEC_H264_GUID, nv_preset,
+	GUID encoder_guid = enc->is_hevc ? NV_ENC_CODEC_HEVC_GUID
+					 : NV_ENC_CODEC_H264_GUID;
+	err = nv.nvEncGetEncodePresetConfig(enc->session, encoder_guid,
+					    nv_preset,
 					    &preset_config);
 	if (nv_failed(enc, err, __FUNCTION__, "nvEncGetEncodePresetConfig")) {
 		return false;
@@ -430,12 +434,16 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	NV_ENC_INITIALIZE_PARAMS *params = &enc->params;
 	NV_ENC_CONFIG *config = &enc->config;
 	NV_ENC_CONFIG_H264 *h264_config = &config->encodeCodecConfig.h264Config;
-	NV_ENC_CONFIG_H264_VUI_PARAMETERS *vui_params =
+	NV_ENC_CONFIG_H264_VUI_PARAMETERS *h264_vui_params =
 		&h264_config->h264VUIParameters;
+
+	NV_ENC_CONFIG_HEVC *hevc_config = &config->encodeCodecConfig.hevcConfig;
+	NV_ENC_CONFIG_HEVC_VUI_PARAMETERS *hevc_vui_params =
+		&hevc_config->hevcVUIParameters;
 
 	memset(params, 0, sizeof(*params));
 	params->version = NV_ENC_INITIALIZE_PARAMS_VER;
-	params->encodeGUID = NV_ENC_CODEC_H264_GUID;
+	
 	params->presetGUID = nv_preset;
 	params->encodeWidth = voi->width;
 	params->encodeHeight = voi->height;
@@ -450,14 +458,33 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	params->maxEncodeHeight = voi->height;
 	config->gopLength = gop_size;
 	config->frameIntervalP = 1 + bf;
-	h264_config->idrPeriod = gop_size;
-	vui_params->videoSignalTypePresentFlag = 1;
-	vui_params->videoFullRangeFlag = (voi->range == VIDEO_RANGE_FULL);
-	vui_params->colourDescriptionPresentFlag = 1;
-	vui_params->colourMatrix = (voi->colorspace == VIDEO_CS_709) ? 1 : 5;
-	vui_params->colourPrimaries = 1;
-	vui_params->transferCharacteristics = 1;	
-	h264_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
+	params->encodeGUID = encoder_guid;
+	if (enc->is_hevc) {
+		hevc_config->idrPeriod = gop_size;
+		hevc_vui_params->videoSignalTypePresentFlag = 1;
+		hevc_vui_params->videoFullRangeFlag =
+			(voi->range == VIDEO_RANGE_FULL);
+		hevc_vui_params->colourDescriptionPresentFlag = 1;
+		hevc_vui_params->colourMatrix =
+			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
+		hevc_vui_params->colourPrimaries = 1;
+		hevc_vui_params->transferCharacteristics = 1;
+		hevc_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
+		hevc_config->outputPictureTimingSEI = 1;
+	} else {
+		h264_config->idrPeriod = gop_size;
+		h264_vui_params->videoSignalTypePresentFlag = 1;
+		h264_vui_params->videoFullRangeFlag =
+			(voi->range == VIDEO_RANGE_FULL);
+		h264_vui_params->colourDescriptionPresentFlag = 1;
+		h264_vui_params->colourMatrix =
+			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
+		h264_vui_params->colourPrimaries = 1;
+		h264_vui_params->transferCharacteristics = 1;
+		h264_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
+		h264_config->outputPictureTimingSEI = 1;
+	}
+	
 	enc->bframes = bf > 0;
 
 	/* lookahead */
@@ -498,26 +525,33 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 		max_bitrate = 0;
 
 	} else if (astrcmpi(rc, "vbr") != 0) { /* CBR by default */
-		h264_config->outputBufferingPeriodSEI = 1;
+		if (enc->is_hevc) 
+			hevc_config->outputBufferingPeriodSEI = 1;
+		else
+			h264_config->outputBufferingPeriodSEI = 1;
 		config->rcParams.rateControlMode =
 			twopass ? NV_ENC_PARAMS_RC_2_PASS_QUALITY
 				: NV_ENC_PARAMS_RC_CBR;
 	}
 
-	h264_config->outputPictureTimingSEI = 1;
+	
 	config->rcParams.averageBitRate = bitrate * 1000;
 	config->rcParams.maxBitRate = vbr ? max_bitrate * 1000 : bitrate * 1000;
 
 	/* -------------------------- */
 	/* profile                    */
-
-	if (astrcmpi(profile, "main") == 0) {
-		config->profileGUID = NV_ENC_H264_PROFILE_MAIN_GUID;
-	} else if (astrcmpi(profile, "baseline") == 0) {
-		config->profileGUID = NV_ENC_H264_PROFILE_BASELINE_GUID;
+	if (enc->is_hevc) {
+		config->profileGUID = NV_ENC_HEVC_PROFILE_MAIN_GUID;
 	} else {
-		config->profileGUID = NV_ENC_H264_PROFILE_HIGH_GUID;
+		if (astrcmpi(profile, "main") == 0) {
+			config->profileGUID = NV_ENC_H264_PROFILE_MAIN_GUID;
+		} else if (astrcmpi(profile, "baseline") == 0) {
+			config->profileGUID = NV_ENC_H264_PROFILE_BASELINE_GUID;
+		} else {
+			config->profileGUID = NV_ENC_H264_PROFILE_HIGH_GUID;
+		}
 	}
+	
 
 	/* -------------------------- */
 	/* initialize                 */
@@ -582,13 +616,13 @@ static bool init_textures(struct nvenc_data *enc)
 
 static void nvenc_destroy(void *data);
 
-static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
+static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
 {
 	NV_ENCODE_API_FUNCTION_LIST init = {NV_ENCODE_API_FUNCTION_LIST_VER};
 	struct nvenc_data *enc = bzalloc(sizeof(*enc));
 	enc->encoder = encoder;
 	enc->first_packet = true;
-
+	enc->is_hevc = is_hevc;
 	/* this encoder requires shared textures, this cannot be used on a
 	 * gpu other than the one OBS is currently running on. */
 	int gpu = (int)obs_data_get_int(settings, "gpu");
@@ -629,6 +663,16 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 fail:
 	nvenc_destroy(enc);
 	return obs_encoder_create_rerouted(encoder, "ffmpeg_nvenc");
+}
+
+static void *nvenc_h264_create(
+	obs_data_t *settings,
+	obs_encoder_t *encoder){
+	return	nvenc_create(settings, encoder, false);
+}
+
+static void *nvenc_hevc_create(obs_data_t *settings, obs_encoder_t *encoder) {
+	return nvenc_create(settings, encoder, true);
 }
 
 static bool get_encoded_packet(struct nvenc_data *enc, bool finalize);
@@ -972,13 +1016,13 @@ static void nvenc_encoder_feedback(void *data, unsigned int bitrate_kbps)
 	enc->encoder_feedback_info.requested_bitrate = bitrate_kbps;
 }
 
-struct obs_encoder_info nvenc_info = {
-	.id = "jim_nvenc",
+struct obs_encoder_info nvenc_h264_info = {
+	.id = "jim_nvenc_h264",
 	.codec = "h264",
 	.type = OBS_ENCODER_VIDEO,
 	.caps = OBS_ENCODER_CAP_PASS_TEXTURE | OBS_ENCODER_CAP_DYN_BITRATE,
 	.get_name = nvenc_get_name,
-	.create = nvenc_create,
+	.create = nvenc_h264_create,
 	.destroy = nvenc_destroy,
 	.update = nvenc_update,
 	.encode_texture = nvenc_encode_tex,
@@ -988,3 +1032,20 @@ struct obs_encoder_info nvenc_info = {
 	.get_sei_data = nvenc_sei_data,
 	.encoder_feedback = nvenc_encoder_feedback
 };
+
+struct obs_encoder_info nvenc_hevc_info = {
+	.id = "jim_nvenc_hevc",
+	.codec = "hevc",
+	.type = OBS_ENCODER_VIDEO,
+	.caps = OBS_ENCODER_CAP_PASS_TEXTURE | OBS_ENCODER_CAP_DYN_BITRATE,
+	.get_name = nvenc_get_name,
+	.create = nvenc_hevc_create,
+	.destroy = nvenc_destroy,
+	.update = nvenc_update,
+	.encode_texture = nvenc_encode_tex,
+	.type_data = 1,
+	.get_defaults = nvenc_defaults,
+	.get_properties = nvenc_properties,
+	.get_extra_data = nvenc_extra_data,
+	.get_sei_data = nvenc_sei_data,
+	.encoder_feedback = nvenc_encoder_feedback};
