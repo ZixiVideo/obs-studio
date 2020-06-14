@@ -791,6 +791,7 @@ static int try_connect(struct zixi_stream *stream)
 	stream->encoder_control.decimation_factor = 1.0f;
 
 	if (stream->use_auto_rtmp) {
+		info("zixi from bx is forwarded to %s", stream->auto_rtmp_url);
 		zixi_rtmp_out_config rtmp_cfg = {0};
 		rtmp_cfg.max_va_diff = 10000;
 		rtmp_cfg.bitrate =
@@ -1417,8 +1418,8 @@ void zixi_output_update(void *data, obs_data_t *settings)
 	struct obs_service_t *service = obs_output_get_service(stream->output);
 	settings = obs_service_get_settings(service);
 	
-	const char *service_name = obs_service_get_name(service);
-	stream->use_auto_rtmp = strcmp(service_name, "zixi-service" )!= 0;
+	const char *service_name = obs_service_get_type(service);
+	stream->use_auto_rtmp = strcmp(service_name, "zixi_service" )!= 0;
 	stream->bonding =
 		obs_data_get_bool(settings, ZIXI_SERVICE_PROP_ENABLE_BONDING);
 	obs_properties_t *l = obs_service_properties(service);
