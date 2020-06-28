@@ -152,6 +152,8 @@ void OBSBasicSettings::on_zixiFwd_toggled()
 	ui->zixiFwdVersionLabel->setVisible(fwd);
 	ui->zixiFwdUrl->setVisible(fwd);
 	ui->zixiFwdUrlLabel->setVisible(fwd);
+	ui->zixiFwdSampleUri->setVisible(fwd);
+	ui->zixiFwdSampleUriLabel->setVisible(fwd);
 	ui->zixiFwdPassword->setVisible(fwd);
 	ui->zixiFwdPasswordLabel->setVisible(fwd);
 	ui->zixiFwdPasswordShow->setVisible(fwd);
@@ -195,6 +197,8 @@ void OBSBasicSettings::DisableZixiControls(bool disable_all)
 	ui->zixiFwdEncryptionKeyLabel->setVisible(visible_value);
 	ui->zixiFwdEnableBonding->setVisible(visible_value);
 	ui->zixiFwdEncoderFeedback->setVisible(visible_value);
+	ui->zixiFwdSampleUri->setVisible(visible_value);
+	ui->zixiFwdSampleUriLabel->setVisible(visible_value);
 	if (visible_value)
 		on_zixiFwdEncryptionType_currentIndexChanged(
 			ui->zixiFwdEncryptionType->currentIndex());
