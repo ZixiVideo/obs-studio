@@ -462,53 +462,62 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 	vui_params->videoFullRangeFlag = (voi->range == VIDEO_RANGE_FULL);
 	vui_params->colourDescriptionPresentFlag = 1;
 
-	switch (voi->colorspace) {
-	case VIDEO_CS_601:
-		vui_params->colourPrimaries = 6;
-		vui_params->transferCharacteristics = 6;
-		vui_params->colourMatrix = 6;
-		break;
-	case VIDEO_CS_DEFAULT:
-	case VIDEO_CS_709:
-		vui_params->colourPrimaries = 1;
-		vui_params->transferCharacteristics = 1;
-		vui_params->colourMatrix = 1;
-		break;
-	case VIDEO_CS_SRGB:
-		vui_params->colourPrimaries = 1;
-		vui_params->transferCharacteristics = 13;
-		vui_params->colourMatrix = 1;
-		break;
-	}
-
- //////////////////////////////////////////////////////////	params->encodeGUID = encoder_guid;
 	if (enc->is_hevc) {
 		hevc_config->idrPeriod = gop_size;
 		hevc_vui_params->videoSignalTypePresentFlag = 1;
 		hevc_vui_params->videoFullRangeFlag =
 			(voi->range == VIDEO_RANGE_FULL);
 		hevc_vui_params->colourDescriptionPresentFlag = 1;
-		hevc_vui_params->colourMatrix =
-			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
-		hevc_vui_params->colourPrimaries = 1;
-		hevc_vui_params->transferCharacteristics = 1;
 		hevc_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
 		hevc_config->outputPictureTimingSEI = 1;
+
+		switch (voi->colorspace) {
+		case VIDEO_CS_601:
+			hevc_vui_params->colourPrimaries = 6;
+			hevc_vui_params->transferCharacteristics = 6;
+			hevc_vui_params->colourMatrix = 6;
+			break;
+		case VIDEO_CS_DEFAULT:
+		case VIDEO_CS_709:
+			hevc_vui_params->colourPrimaries = 1;
+			hevc_vui_params->transferCharacteristics = 1;
+			hevc_vui_params->colourMatrix = 1;
+			break;
+		case VIDEO_CS_SRGB:
+			hevc_vui_params->colourPrimaries = 1;
+			hevc_vui_params->transferCharacteristics = 13;
+			hevc_vui_params->colourMatrix = 1;
+			break;
+		}
 	} else {
 		h264_config->idrPeriod = gop_size;
 		h264_vui_params->videoSignalTypePresentFlag = 1;
 		h264_vui_params->videoFullRangeFlag =
 			(voi->range == VIDEO_RANGE_FULL);
 		h264_vui_params->colourDescriptionPresentFlag = 1;
-		h264_vui_params->colourMatrix =
-			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
-		h264_vui_params->colourPrimaries = 1;
-		h264_vui_params->transferCharacteristics = 1;
 		h264_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
 		h264_config->outputPictureTimingSEI = 1;
+
+		switch (voi->colorspace) {
+		case VIDEO_CS_601:
+			h264_vui_params->colourPrimaries = 6;
+			h264_vui_params->transferCharacteristics = 6;
+			h264_vui_params->colourMatrix = 6;
+			break;
+		case VIDEO_CS_DEFAULT:
+		case VIDEO_CS_709:
+			h264_vui_params->colourPrimaries = 1;
+			h264_vui_params->transferCharacteristics = 1;
+			hevc_vui_params->colourMatrix = 1;
+			break;
+		case VIDEO_CS_SRGB:
+			h264_vui_params->colourPrimaries = 1;
+			h264_vui_params->transferCharacteristics = 13;
+			h264_vui_params->colourMatrix = 1;
+			break;
+		}
 	}
-	
-//////////////////////////////////////////////////////////
+
 	enc->bframes = bf > 0;
 
 	/* lookahead */

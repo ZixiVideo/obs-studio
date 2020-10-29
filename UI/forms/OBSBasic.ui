@@ -2007,7 +2007,6 @@
     <string>Basic.MainMenu.View.ContextBar</string>
    </property>
   </action>
-  <action name="actionBasic_MainMenu_Help_GetZixi">
   <action name="actionGetZixi">
    <property name="text">
     <string>Basic.MainMenu.Help.GetZixi</string>
