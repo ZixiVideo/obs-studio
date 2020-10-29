@@ -1944,11 +1944,10 @@ void OBSBasic::OBSInit()
 	delete ui->actionShowCrashLogs;
 	delete ui->actionUploadLastCrashLog;
 	delete ui->menuCrashLogs;
-	
 	ui->actionShowCrashLogs = nullptr;
 	ui->actionUploadLastCrashLog = nullptr;
 	ui->menuCrashLogs = nullptr;
-	
+
 #endif
 	delete ui->actionCheckForUpdates;
 	ui->actionCheckForUpdates = nullptr;

@@ -176,6 +176,8 @@ void OBSBasicSettings::on_zixiFwd_toggled()
 
 	ui->zixiFwdEnableBonding->setVisible(fwd);
 	ui->zixiFwdEncoderFeedback->setVisible(fwd);
+	
+	
 	on_zixiFwdEncryptionType_currentIndexChanged(
 		ui->zixiFwdEncryptionType->currentIndex());
 }
@@ -418,10 +420,23 @@ void OBSBasicSettings::SaveStream1Settings()
 			}
 		}
 
+	if (!!auth && strcmp(auth->service(), "Twitch") == 0) {
+		bool choiceExists = config_has_user_value(
+			main->Config(), "Twitch", "AddonChoice");
+		int currentChoice =
+			config_get_int(main->Config(), "Twitch", "AddonChoice");
+		int newChoice = ui->twitchAddonDropdown->currentIndex();
+
+		config_set_int(main->Config(), "Twitch", "AddonChoice",
+			       newChoice);
+
+		if (choiceExists && currentChoice != newChoice)
+			forceAuthReload = true;
+
 		obs_data_set_bool(settings, "bwtest",
 				  ui->bandwidthTestEnable->isChecked());
-		obs_data_set_string(settings, "key",
-				    QT_TO_UTF8(ui->key->text()));
+		obs_data_set_bool(settings, "bwtest", false);
+	}
 
 #ifdef ENABLE_ZIXI_SUPPORT
 		if (IsZixiPluginLoaded()) {
@@ -671,6 +686,8 @@ void OBSBasicSettings::on_service_currentIndexChanged(int)
 	ui->authPwLabel->setVisible(!zixiService);
 	ui->authPw->setVisible(!zixiService);
 	ui->useAuth->setVisible(!zixiService);
+	ui->mixerAddonLabel->setVisible(!zixiService);
+	ui->mixerAddonDropdown->setVisible(!zixiService);
 	if (IsZixiPluginLoaded())
 		ui->zixiFwd->setVisible(!zixiService);
 	else
@@ -691,7 +708,8 @@ void OBSBasicSettings::on_service_currentIndexChanged(int)
 	ui->bandwidthTestEnable->setVisible(false);
 	ui->twitchAddonDropdown->setVisible(false);
 	ui->twitchAddonLabel->setVisible(false);
-
+	ui->mixerAddonLabel->setVisible(false);
+	ui->mixerAddonDropdown->setVisible(false);
 #ifdef BROWSER_AVAILABLE
 	if (cef) {
 		if (lastService != service.c_str()) {
@@ -740,10 +758,6 @@ void OBSBasicSettings::on_service_currentIndexChanged(int)
 		OnAuthConnected();
 	}
 #endif
-
-	if (force_load_stream_settings) {
-		//ReloadService();
-	}
 }
 
 void OBSBasicSettings::UpdateServerList()
