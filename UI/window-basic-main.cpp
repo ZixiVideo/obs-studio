@@ -7955,7 +7955,7 @@ void OBSBasic::on_actionShowAbout_triggered()
 
 void OBSBasic::on_actionGetZixi_triggered()
 {
-	QUrl zixi_url("https://portal.zixi.com/self-registration/OBS_STUDIO_ZIXI_FEEDER?build=obs_plugin&os=windows64");
+	QUrl zixi_url("https://portal.zixi.com/free/zixi_obs_plugin_installer-win-x64.exe");
 
 	int failed = -1;
 	if (QDesktopServices::openUrl(zixi_url)) {
