@@ -66,7 +66,7 @@ static obs_properties_t *zixi_service_properties(void *unused)
 		OBS_TEXT_DEFAULT);
 	obs_properties_add_text(ppts, "zixi_password", obs_module_text("ZixiPassword"),
 		OBS_TEXT_PASSWORD);
-	obs_properties_add_list(ppts, "zixi_latency", obs_module_text("ZixiLatency"), OBS_COMBO_TYPE_LIST,
+	obs_properties_add_list(ppts, "zixi_latency_id", obs_module_text("ZixiLatency"), OBS_COMBO_TYPE_LIST,
 		OBS_COMBO_FORMAT_INT);
 	obs_properties_add_list(ppts, "zixi_encryption_type", obs_module_text("ZixiEncryptionType"), OBS_COMBO_TYPE_LIST,
 		OBS_COMBO_FORMAT_STRING);

@@ -321,13 +321,12 @@ static uint64_t zixi_wrap_ts(uint64_t dts, int64_t num, int64_t den)
 {
 	int64_t i_dts = (int64_t)dts;
 	static const int64_t MAX_PTS = 0x1ffffffff;
-	return (uint64_t)(MAX_PTS + ((i_dts * 90000) * num) / den);
+	return (uint64_t)(MAX_PTS + (i_dts * 90000) / den);
 }
 
 static uint64_t zixi_convert_ts(uint64_t ts, int64_t num, int64_t den)
 {
-	uint64_t res = ts * num * 90000;
-	res /= den;
+	uint64_t res = (((uint64_t)ts * 90000) / den) ;
 	return res;
 }
 
@@ -348,14 +347,14 @@ static int send_packet(struct zixi_stream *stream,
 					      packet->timebase_den);
 	} else {
 		if (packet->dts >= 0)
-			packet->dts = zixi_convert_ts(packet->dts,
+			packet->dts = zixi_wrap_ts(packet->dts,
 						      packet->timebase_num,
 						      packet->timebase_den);
 		else
 			packet->dts = zixi_wrap_ts(packet->dts,
 						   packet->timebase_num,
 						   packet->timebase_den);
-		packet->pts = zixi_convert_ts(packet->pts, packet->timebase_num,
+		packet->pts = zixi_wrap_ts(packet->pts, packet->timebase_num,
 					      packet->timebase_den);
 	}
 
@@ -679,7 +678,8 @@ static int try_connect(struct zixi_stream *stream)
 	dstr_catf(&stream->encoder_name, "%d.%d.%d", LIBOBS_API_MAJOR_VER,
 		  LIBOBS_API_MINOR_VER, LIBOBS_API_PATCH_VER);
 #endif
-
+	stream->feeder_functions.zixi_configure_logging(
+		ZIXI_LOG_INFO, zixi_log_callback, NULL);
 	dstr_cat(&stream->encoder_name, "; FMSc/1.0)");
 	fill_machine_id();
 	zixi_stream_config cfg = {0};
@@ -694,7 +694,7 @@ static int try_connect(struct zixi_stream *stream)
 		cfg.sz_enc_key = NULL;
 	}
 
-	cfg.max_latency_ms = zixi_latency_from_id(stream->latency_id);
+	cfg.max_latency_ms = stream->latency_id;
 	cfg.port = (unsigned short *)malloc(1 * sizeof(unsigned short));
 	cfg.port[0] = (unsigned short)stream->port;
 	cfg.sz_stream_id = malloc(stream->channel_name.len + 1);
@@ -784,8 +784,7 @@ static int try_connect(struct zixi_stream *stream)
 	cfg.elementary_streams_config.scte_enabled = false;
 	cfg.elementary_streams_max_va_diff_ms = 1000;
 
-	stream->feeder_functions.zixi_configure_logging(
-		ZIXI_LOG_WARNINGS, zixi_log_callback, NULL);
+	
 
 	int zixi_ret = -1;
 	stream->encoder_control.decimation_factor = 1.0f;
@@ -956,7 +955,7 @@ static void *zixi_stream_create(obs_data_t *settings, obs_output_t *output)
 	}
 
 	stream->feeder_functions.zixi_configure_logging(
-		ZIXI_LOG_INFO, zixi_log_callback, NULL);
+		ZIXI_LOG_WARNINGS, zixi_log_callback, NULL);
 	if (pthread_mutex_init(&stream->packets_mutex, NULL) != 0)
 		goto fail;
 	if (pthread_mutex_init(&stream->encoder_control_mutex, NULL) != 0)
