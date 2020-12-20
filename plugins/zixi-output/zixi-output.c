@@ -1231,20 +1231,68 @@ static int freq_to_adts(unsigned int freq)
 	return r;
 }
 
+static char zixi_encoder_sample_rate_to_adts_index(uint32_t sr) {
+	char r = 0; // : 96000 Hz
+	switch (sr) {
+	case 96000:
+		break;
+	case 88200:
+		r = 1;
+		break;
+	case 64000:
+		r = 2;
+		break;
+	case 48000:
+		r = 3;
+		break;
+	case 44100:
+		r = 4;
+		break;
+	case 32000:
+		r = 5;
+		break;
+	case 24000:
+		r = 6;
+		break;
+	case 22050:
+		r = 7;
+		break;
+	case 16000:
+		r = 8;
+		break;
+	case 12000:
+		r = 9;
+		break;
+	case 11025:
+		r = 10;
+		break;
+	case 8000:
+		r = 11;
+		break;
+	case 7350:
+		r = 12;
+		break;
+	default:
+		break;
+	}
+	return r;
+}
+
+
 static void zixi_add_adts_headers(struct zixi_stream *stream,
 				  struct encoder_packet *out,
 				  struct encoder_packet *in)
 {
-	char adts[7];
+	char v = zixi_encoder_sample_rate_to_adts_index(stream->audio_encoder_sample_rate);
+	unsigned char adts[7];
 	size_t new_size = in->size + 7;
 	adts[0] = 0xff;
 	adts[1] = 0xf0;
 	adts[1] |= 0x08;
 	adts[1] |= 0x01;
 
-	adts[2] = 0;
 	adts[2] = 0x01 << 6;
-	adts[2] |= 0x04 << 2;
+	adts[2] |= (unsigned char)v << 2;
 
 	adts[3] = 0;
 	adts[3] = stream->audio_encoder_channels << 6;

@@ -1641,7 +1641,7 @@ int AdvancedOutput::GetAudioBitrate(size_t i) const
 }
 
 inline void AdvancedOutput::SetupVodTrack(obs_service_t *service)
-{
+{	
 	int streamTrack =
 		config_get_int(main->Config(), "AdvOut", "TrackIndex");
 	bool vodTrackEnabled =
