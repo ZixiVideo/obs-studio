@@ -9,7 +9,13 @@
 #include <util/util_uint64.h>
 
 #include <sstream>
+#include <iomanip>
 #include <algorithm>
+
+#include "OBSVideoFrame.h"
+
+#include <caption/caption.h>
+#include <util/bitstream.h>
 
 static inline enum video_format ConvertPixelFormat(BMDPixelFormat format)
 {
@@ -62,14 +68,23 @@ static inline audio_repack_mode_t ConvertRepackFormat(speaker_layout format,
 
 DeckLinkDeviceInstance::DeckLinkDeviceInstance(DecklinkBase *decklink_,
 					       DeckLinkDevice *device_)
-	: currentFrame(), currentPacket(), decklink(decklink_), device(device_)
+	: currentFrame(),
+	  currentPacket(),
+	  currentCaptions(),
+	  decklink(decklink_),
+	  device(device_)
 {
 	currentPacket.samples_per_sec = 48000;
 	currentPacket.speakers = SPEAKERS_STEREO;
 	currentPacket.format = AUDIO_FORMAT_16BIT;
 }
 
-DeckLinkDeviceInstance::~DeckLinkDeviceInstance() {}
+DeckLinkDeviceInstance::~DeckLinkDeviceInstance()
+{
+	if (convertFrame) {
+		delete convertFrame;
+	}
+}
 
 void DeckLinkDeviceInstance::HandleAudioPacket(
 	IDeckLinkAudioInputPacket *audioPacket, const uint64_t timestamp)
@@ -127,21 +142,143 @@ void DeckLinkDeviceInstance::HandleVideoFrame(
 	if (videoFrame == nullptr)
 		return;
 
+	IDeckLinkVideoFrameAncillaryPackets *packets;
+
+	if (videoFrame->QueryInterface(IID_IDeckLinkVideoFrameAncillaryPackets,
+				       (void **)&packets) == S_OK) {
+		IDeckLinkAncillaryPacketIterator *iterator;
+		packets->GetPacketIterator(&iterator);
+
+		IDeckLinkAncillaryPacket *packet;
+		iterator->Next(&packet);
+
+		if (packet) {
+			auto did = packet->GetDID();
+			auto sdid = packet->GetSDID();
+
+			// Caption data
+			if (did == 0x61 && sdid == 0x01) {
+				this->HandleCaptionPacket(packet, timestamp);
+			}
+
+			packet->Release();
+		}
+
+		iterator->Release();
+		packets->Release();
+	}
+
+	IDeckLinkVideoConversion *frameConverter =
+		CreateVideoConversionInstance();
+
+	frameConverter->ConvertFrame(videoFrame, convertFrame);
+
 	void *bytes;
-	if (videoFrame->GetBytes(&bytes) != S_OK) {
+	if (convertFrame->GetBytes(&bytes) != S_OK) {
 		LOG(LOG_WARNING, "Failed to get video frame data");
 		return;
 	}
 
 	currentFrame.data[0] = (uint8_t *)bytes;
-	currentFrame.linesize[0] = (uint32_t)videoFrame->GetRowBytes();
-	currentFrame.width = (uint32_t)videoFrame->GetWidth();
-	currentFrame.height = (uint32_t)videoFrame->GetHeight();
+	currentFrame.linesize[0] = (uint32_t)convertFrame->GetRowBytes();
+	currentFrame.width = (uint32_t)convertFrame->GetWidth();
+	currentFrame.height = (uint32_t)convertFrame->GetHeight();
 	currentFrame.timestamp = timestamp;
 
 	obs_source_output_video2(
 		static_cast<DeckLinkInput *>(decklink)->GetSource(),
 		&currentFrame);
+}
+
+void DeckLinkDeviceInstance::HandleCaptionPacket(
+	IDeckLinkAncillaryPacket *packet, const uint64_t timestamp)
+{
+	const void *data;
+	uint32_t size;
+	packet->GetBytes(bmdAncillaryPacketFormatUInt8, &data, &size);
+
+	auto anc = (uint8_t *)data;
+	struct bitstream_reader reader;
+	bitstream_reader_init(&reader, anc, size);
+
+	// header1
+	bitstream_reader_r8(&reader);
+	// header2
+	bitstream_reader_r8(&reader);
+
+	// length
+	bitstream_reader_r8(&reader);
+	// frameRate
+	bitstream_reader_read_bits(&reader, 4);
+	//reserved
+	bitstream_reader_read_bits(&reader, 4);
+
+	auto cdp_timecode_added = bitstream_reader_read_bits(&reader, 1);
+	// cdp_data_block_added
+	bitstream_reader_read_bits(&reader, 1);
+	// cdp_service_info_added
+	bitstream_reader_read_bits(&reader, 1);
+	// cdp_service_info_start
+	bitstream_reader_read_bits(&reader, 1);
+	// cdp_service_info_changed
+	bitstream_reader_read_bits(&reader, 1);
+	// cdp_service_info_end
+	bitstream_reader_read_bits(&reader, 1);
+	auto cdp_contains_captions = bitstream_reader_read_bits(&reader, 1);
+	//reserved
+	bitstream_reader_read_bits(&reader, 1);
+
+	// cdp_counter
+	bitstream_reader_r8(&reader);
+	// cdp_counter2
+	bitstream_reader_r8(&reader);
+
+	if (cdp_timecode_added) {
+		// timecodeSectionID
+		bitstream_reader_r8(&reader);
+		//reserved
+		bitstream_reader_read_bits(&reader, 2);
+		bitstream_reader_read_bits(&reader, 2);
+		bitstream_reader_read_bits(&reader, 4);
+		// reserved
+		bitstream_reader_read_bits(&reader, 1);
+		bitstream_reader_read_bits(&reader, 3);
+		bitstream_reader_read_bits(&reader, 4);
+		bitstream_reader_read_bits(&reader, 1);
+		bitstream_reader_read_bits(&reader, 3);
+		bitstream_reader_read_bits(&reader, 4);
+		bitstream_reader_read_bits(&reader, 1);
+		bitstream_reader_read_bits(&reader, 1);
+		bitstream_reader_read_bits(&reader, 3);
+		bitstream_reader_read_bits(&reader, 4);
+	}
+
+	if (cdp_contains_captions) {
+		// cdp_data_section
+		bitstream_reader_r8(&reader);
+
+		//process_em_data_flag
+		bitstream_reader_read_bits(&reader, 1);
+		// process_cc_data_flag
+		bitstream_reader_read_bits(&reader, 1);
+		//additional_data_flag
+		bitstream_reader_read_bits(&reader, 1);
+
+		auto cc_count = bitstream_reader_read_bits(&reader, 5);
+
+		auto *outData =
+			(uint8_t *)bzalloc(sizeof(uint8_t) * cc_count * 3);
+		memcpy(outData, anc + reader.pos, cc_count * 3);
+
+		currentCaptions.data = outData;
+		currentCaptions.timestamp = timestamp;
+		currentCaptions.packets = cc_count;
+
+		obs_source_output_cea708(
+			static_cast<DeckLinkInput *>(decklink)->GetSource(),
+			&currentCaptions);
+		bfree(outData);
+	}
 }
 
 void DeckLinkDeviceInstance::FinalizeStream()
@@ -188,6 +325,11 @@ void DeckLinkDeviceInstance::SetupVideoFormat(DeckLinkDeviceMode *mode_)
 				    currentFrame.color_matrix,
 				    currentFrame.color_range_min,
 				    currentFrame.color_range_max);
+
+	if (convertFrame) {
+		delete convertFrame;
+	}
+	convertFrame = new OBSVideoFrame(mode_->GetWidth(), mode_->GetHeight());
 
 #ifdef LOG_SETUP_VIDEO_FORMAT
 	LOG(LOG_INFO, "Setup video format: %s, %s, %s",
@@ -250,7 +392,7 @@ bool DeckLinkDeviceInstance::StartCapture(DeckLinkDeviceMode *mode_,
 	bool isauto = mode_->GetName() == "Auto";
 	if (isauto) {
 		displayMode = bmdModeNTSC;
-		pixelFormat = bmdFormat8BitYUV;
+		pixelFormat = bmdFormat10BitYUV;
 		flags = bmdVideoInputEnableFormatDetection;
 	} else {
 		displayMode = mode_->GetDisplayMode();
@@ -487,13 +629,6 @@ HRESULT STDMETHODCALLTYPE DeckLinkDeviceInstance::VideoInputFormatChanged(
 	BMDVideoInputFormatChangedEvents events, IDeckLinkDisplayMode *newMode,
 	BMDDetectedVideoInputFormatFlags detectedSignalFlags)
 {
-	input->PauseStreams();
-
-	mode->SetMode(newMode);
-
-	if (events & bmdVideoInputDisplayModeChanged) {
-		displayMode = mode->GetDisplayMode();
-	}
 
 	if (events & bmdVideoInputColorspaceChanged) {
 		switch (detectedSignalFlags) {
@@ -503,25 +638,30 @@ HRESULT STDMETHODCALLTYPE DeckLinkDeviceInstance::VideoInputFormatChanged(
 
 		default:
 		case bmdDetectedVideoInputYCbCr422:
-			pixelFormat = bmdFormat8BitYUV;
+			pixelFormat = bmdFormat10BitYUV;
 			break;
 		}
 	}
 
-	const HRESULT videoResult = input->EnableVideoInput(
-		displayMode, pixelFormat, bmdVideoInputEnableFormatDetection);
-	if (videoResult != S_OK) {
-		LOG(LOG_ERROR, "Failed to enable video input");
-		input->StopStreams();
-		FinalizeStream();
+	if (events & bmdVideoInputDisplayModeChanged) {
+		input->PauseStreams();
+		mode->SetMode(newMode);
+		displayMode = mode->GetDisplayMode();
 
-		return E_FAIL;
+		const HRESULT videoResult = input->EnableVideoInput(
+			displayMode, pixelFormat,
+			bmdVideoInputEnableFormatDetection);
+		if (videoResult != S_OK) {
+			LOG(LOG_ERROR, "Failed to enable video input");
+			input->StopStreams();
+			FinalizeStream();
+
+			return E_FAIL;
+		}
+		SetupVideoFormat(mode);
+		input->FlushStreams();
+		input->StartStreams();
 	}
-
-	SetupVideoFormat(mode);
-
-	input->FlushStreams();
-	input->StartStreams();
 
 	return S_OK;
 }
