@@ -1218,6 +1218,14 @@ bool OBSBasic::InitBasicConfigDefaults()
 	uint32_t cx = primaryScreen->size().width();
 	uint32_t cy = primaryScreen->size().height();
 
+#ifdef SUPPORTS_FRACTIONAL_SCALING
+	cx *= devicePixelRatioF();
+	cy *= devicePixelRatioF();
+#elif
+	cx *= devicePixelRatio();
+	cy *= devicePixelRatio();
+#endif
+
 	bool oldResolutionDefaults = config_get_bool(
 		App()->GlobalConfig(), "General", "Pre19Defaults");
 
@@ -6292,6 +6300,9 @@ void OBSBasic::OnVirtualCamStart()
 	vcamButton->setText(QTStr("Basic.Main.StopVirtualCam"));
 	vcamButton->setChecked(true);
 
+	if (api)
+		api->on_event(OBS_FRONTEND_EVENT_VIRTUALCAM_STARTED);
+
 	OnActivate();
 
 	blog(LOG_INFO, VIRTUAL_CAM_START);
@@ -6304,6 +6315,9 @@ void OBSBasic::OnVirtualCamStop(int)
 
 	vcamButton->setText(QTStr("Basic.Main.StartVirtualCam"));
 	vcamButton->setChecked(false);
+
+	if (api)
+		api->on_event(OBS_FRONTEND_EVENT_VIRTUALCAM_STOPPED);
 
 	blog(LOG_INFO, VIRTUAL_CAM_STOP);
 

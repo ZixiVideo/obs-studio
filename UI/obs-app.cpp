@@ -483,6 +483,8 @@ bool OBSApp::InitGlobalConfigDefaults()
 #endif
 
 #ifdef __APPLE__
+	config_set_default_bool(globalConfig, "General", "BrowserHWAccel",
+				true);
 	config_set_default_bool(globalConfig, "Video", "DisableOSXVSync", true);
 	config_set_default_bool(globalConfig, "Video", "ResetOSXVSyncOnExit",
 				true);
@@ -1387,7 +1389,7 @@ bool OBSApp::OBSInit()
 
 	obs_set_ui_task_handler(ui_task_handler);
 
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 	bool browserHWAccel =
 		config_get_bool(globalConfig, "General", "BrowserHWAccel");
 
@@ -1932,7 +1934,7 @@ static int run_program(fstream &logFile, int argc, char *argv[])
 #if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
 	QGuiApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
 #endif
-#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0))
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)) && defined(_WIN32)
 	QGuiApplication::setHighDpiScaleFactorRoundingPolicy(
 		Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 #endif
@@ -2288,6 +2290,36 @@ bool GetClosestUnusedFileName(std::string &path, const char *extension)
 		}
 	} while (os_file_exists(path.c_str()));
 
+	return true;
+}
+
+bool GetUnusedSceneCollectionFile(std::string &name, std::string &file)
+{
+	char path[512];
+	int ret;
+
+	if (!GetFileSafeName(name.c_str(), file)) {
+		blog(LOG_WARNING, "Failed to create safe file name for '%s'",
+		     name.c_str());
+		return false;
+	}
+
+	ret = GetConfigPath(path, sizeof(path), "obs-studio/basic/scenes/");
+	if (ret <= 0) {
+		blog(LOG_WARNING, "Failed to get scene collection config path");
+		return false;
+	}
+
+	file.insert(0, path);
+
+	if (!GetClosestUnusedFileName(file, "json")) {
+		blog(LOG_WARNING, "Failed to get closest file name for %s",
+		     file.c_str());
+		return false;
+	}
+
+	file.erase(file.size() - 5, 5);
+	file.erase(0, strlen(path));
 	return true;
 }
 

@@ -339,7 +339,10 @@ static inline void CleanupPartialUpdates()
 
 bool DownloadWorkerThread()
 {
-	const DWORD tlsProtocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2;
+	const DWORD tlsProtocols = WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_2 |
+				   WINHTTP_FLAG_SECURE_PROTOCOL_TLS1_3;
+
+	const DWORD enableHTTP2Flag = WINHTTP_PROTOCOL_FLAG_HTTP2;
 
 	HttpHandle hSession = WinHttpOpen(L"OBS Studio Updater/2.1",
 					  WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
@@ -353,6 +356,9 @@ bool DownloadWorkerThread()
 
 	WinHttpSetOption(hSession, WINHTTP_OPTION_SECURE_PROTOCOLS,
 			 (LPVOID)&tlsProtocols, sizeof(tlsProtocols));
+
+	WinHttpSetOption(hSession, WINHTTP_OPTION_ENABLE_HTTP_PROTOCOL,
+			 (LPVOID)&enableHTTP2Flag, sizeof(enableHTTP2Flag));
 
 	HttpHandle hConnect = WinHttpConnect(hSession,
 					     L"cdn-fastly.obsproject.com",
@@ -1438,7 +1444,7 @@ static bool Update(wchar_t *cmdLine)
 	/* ------------------------------------- *
 	 * Download Updates                      */
 
-	if (!RunDownloadWorkers(2))
+	if (!RunDownloadWorkers(4))
 		return false;
 
 	if ((size_t)completedUpdates != updates.size()) {
