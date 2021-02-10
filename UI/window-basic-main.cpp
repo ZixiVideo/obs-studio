@@ -51,6 +51,7 @@
 #include "window-log-reply.hpp"
 #include "window-projector.hpp"
 #include "window-remux.hpp"
+#include "window-missing-files.hpp"
 #include "qt-wrappers.hpp"
 #include "context-bar-controls.hpp"
 #include "obs-proxy-style.hpp"
@@ -136,6 +137,16 @@ template<typename T> static void SetOBSRef(QListWidgetItem *item, T &&val)
 
 static void AddExtraModulePaths()
 {
+	char *plugins_path = getenv("OBS_PLUGINS_PATH");
+	char *plugins_data_path = getenv("OBS_PLUGINS_DATA_PATH");
+	if (plugins_path && plugins_data_path) {
+		string data_path_with_module_suffix;
+		data_path_with_module_suffix += plugins_data_path;
+		data_path_with_module_suffix += "/%module%";
+		obs_add_module_path(plugins_path,
+				    data_path_with_module_suffix.c_str());
+	}
+
 	char base_module_dir[512];
 #if defined(_WIN32) || defined(__APPLE__)
 	int ret = GetProgramDataPath(base_module_dir, sizeof(base_module_dir),
@@ -970,7 +981,19 @@ void OBSBasic::Load(const char *file)
 		obs_data_array_push_back_array(sources, groups);
 	}
 
-	obs_load_sources(sources, nullptr, nullptr);
+	obs_missing_files_t *files = obs_missing_files_create();
+
+	auto cb = [](void *private_data, obs_source_t *source) {
+		obs_missing_files_t *f = (obs_missing_files_t *)private_data;
+		obs_missing_files_t *sf = obs_source_get_missing_files(source);
+
+		obs_missing_files_append(f, sf);
+		obs_missing_files_destroy(sf);
+
+		UNUSED_PARAMETER(source);
+	};
+
+	obs_load_sources(sources, cb, files);
 
 	if (transitions)
 		LoadTransitions(transitions);
@@ -1113,6 +1136,14 @@ retryScene:
 	copyFilter = nullptr;
 
 	LogScenes();
+
+	if (obs_missing_files_count(files) > 0) {
+		OBSMissingFiles *miss = new OBSMissingFiles(files, this);
+		miss->show();
+		miss->raise();
+	} else {
+		obs_missing_files_destroy(files);
+	}
 
 	disableSaving--;
 
@@ -1945,16 +1976,20 @@ void OBSBasic::OBSInit()
 
 	ui->sources->UpdateIcons();
 
-#if !defined(_WIN32) && !defined(__APPLE__)
+#if !defined(_WIN32)
 	delete ui->actionShowCrashLogs;
 	delete ui->actionUploadLastCrashLog;
 	delete ui->menuCrashLogs;
-	delete ui->actionCheckForUpdates;
 	ui->actionShowCrashLogs = nullptr;
 	ui->actionUploadLastCrashLog = nullptr;
 	ui->menuCrashLogs = nullptr;
+#if !defined(__APPLE__)
+	delete ui->actionCheckForUpdates;
 	ui->actionCheckForUpdates = nullptr;
-#elif _WIN32 || __APPLE__
+#endif
+#endif
+
+#if defined(_WIN32) || defined(__APPLE__)
 	if (App()->IsUpdaterDisabled())
 		ui->actionCheckForUpdates->setEnabled(false);
 #endif
@@ -2976,6 +3011,9 @@ void OBSBasic::UpdateContextBar(bool force)
 		const char *id = obs_source_get_unversioned_id(source);
 		uint32_t flags = obs_source_get_output_flags(source);
 
+		ui->sourceInteractButton->setVisible(flags &
+						     OBS_SOURCE_INTERACTION);
+
 		if (flags & OBS_SOURCE_CONTROLLABLE_MEDIA) {
 			if (!is_network_media_source(source, id)) {
 				MediaControls *mediaControls =
@@ -3056,6 +3094,7 @@ void OBSBasic::UpdateContextBar(bool force)
 
 		ui->sourceFiltersButton->setEnabled(false);
 		ui->sourcePropertiesButton->setEnabled(false);
+		ui->sourceInteractButton->setVisible(false);
 	}
 }
 
@@ -3283,6 +3322,7 @@ void OBSBasic::VolControlContextMenu()
 		pasteFiltersAction.setEnabled(true);
 
 	QMenu popup;
+	vol->SetContextMenu(&popup);
 	popup.addAction(&lockAction);
 	popup.addSeparator();
 	popup.addAction(&unhideAllAction);
@@ -3298,6 +3338,7 @@ void OBSBasic::VolControlContextMenu()
 	popup.addAction(&propertiesAction);
 	popup.addAction(&advPropAction);
 	popup.exec(QCursor::pos());
+	vol->SetContextMenu(nullptr);
 }
 
 void OBSBasic::on_hMixerScrollArea_customContextMenuRequested()
@@ -5329,7 +5370,7 @@ void OBSBasic::UploadLog(const char *subdir, const char *file, const bool crash)
 		return;
 
 	ui->menuLogFiles->setEnabled(false);
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32)
 	ui->menuCrashLogs->setEnabled(false);
 #endif
 
@@ -5416,7 +5457,7 @@ void OBSBasic::on_actionCheckForUpdates_triggered()
 void OBSBasic::logUploadFinished(const QString &text, const QString &error)
 {
 	ui->menuLogFiles->setEnabled(true);
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32)
 	ui->menuCrashLogs->setEnabled(true);
 #endif
 
@@ -5432,7 +5473,7 @@ void OBSBasic::logUploadFinished(const QString &text, const QString &error)
 void OBSBasic::crashUploadFinished(const QString &text, const QString &error)
 {
 	ui->menuLogFiles->setEnabled(true);
-#if defined(_WIN32) || defined(__APPLE__)
+#if defined(_WIN32)
 	ui->menuCrashLogs->setEnabled(true);
 #endif
 
@@ -6298,6 +6339,8 @@ void OBSBasic::OnVirtualCamStart()
 		return;
 
 	vcamButton->setText(QTStr("Basic.Main.StopVirtualCam"));
+	if (sysTrayVirtualCam)
+		sysTrayVirtualCam->setText(QTStr("Basic.Main.StopVirtualCam"));
 	vcamButton->setChecked(true);
 
 	if (api)
@@ -6314,6 +6357,8 @@ void OBSBasic::OnVirtualCamStop(int)
 		return;
 
 	vcamButton->setText(QTStr("Basic.Main.StartVirtualCam"));
+	if (sysTrayVirtualCam)
+		sysTrayVirtualCam->setText(QTStr("Basic.Main.StartVirtualCam"));
 	vcamButton->setChecked(false);
 
 	if (api)
@@ -7605,6 +7650,8 @@ void OBSBasic::SystemTrayInit()
 				    trayIcon.data());
 	sysTrayReplayBuffer = new QAction(QTStr("Basic.Main.StartReplayBuffer"),
 					  trayIcon.data());
+	sysTrayVirtualCam = new QAction(QTStr("Basic.Main.StartVirtualCam"),
+					trayIcon.data());
 	exit = new QAction(QTStr("Exit"), trayIcon.data());
 
 	trayMenu = new QMenu;
@@ -7620,12 +7667,15 @@ void OBSBasic::SystemTrayInit()
 	trayMenu->addAction(sysTrayStream);
 	trayMenu->addAction(sysTrayRecord);
 	trayMenu->addAction(sysTrayReplayBuffer);
+	trayMenu->addAction(sysTrayVirtualCam);
 	trayMenu->addAction(exit);
 	trayIcon->setContextMenu(trayMenu);
 	trayIcon->show();
 
 	if (outputHandler && !outputHandler->replayBuffer)
 		sysTrayReplayBuffer->setEnabled(false);
+
+	sysTrayVirtualCam->setEnabled(vcamEnabled);
 
 	connect(trayIcon.data(),
 		SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this,
@@ -7637,6 +7687,8 @@ void OBSBasic::SystemTrayInit()
 		SLOT(on_recordButton_clicked()));
 	connect(sysTrayReplayBuffer.data(), &QAction::triggered, this,
 		&OBSBasic::ReplayBufferClicked);
+	connect(sysTrayVirtualCam.data(), &QAction::triggered, this,
+		&OBSBasic::VCamButtonClicked);
 	connect(exit, SIGNAL(triggered()), this, SLOT(close()));
 }
 
@@ -7650,7 +7702,9 @@ void OBSBasic::IconActivated(QSystemTrayIcon::ActivationReason reason)
 	AddProjectorMenuMonitors(studioProgramProjector, this,
 				 SLOT(OpenStudioProgramProjector()));
 
-#ifndef __APPLE__
+#ifdef __APPLE__
+	UNUSED_PARAMETER(reason);
+#else
 	if (reason == QSystemTrayIcon::Trigger) {
 		EnablePreviewDisplay(previewEnabled && !isVisible());
 		ToggleShowHide();
@@ -8463,4 +8517,9 @@ void OBSBasic::on_sourcePropertiesButton_clicked()
 void OBSBasic::on_sourceFiltersButton_clicked()
 {
 	OpenFilters();
+}
+
+void OBSBasic::on_sourceInteractButton_clicked()
+{
+	on_actionInteract_triggered();
 }
