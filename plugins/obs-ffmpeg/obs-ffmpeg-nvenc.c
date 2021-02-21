@@ -55,7 +55,19 @@ struct nvenc_encoder {
 	int height;
 	bool first_packet;
 	bool initialized;
+
+	/*
+	* true  - hevc
+	* false - h264
+	*/
+	bool is_hevc;
 };
+
+static const char *nvenc_getname_hevc(void *unused)
+{
+	UNUSED_PARAMETER(unused);
+	return "NVIDIA NVENC HEVC";
+}
 
 static const char *nvenc_getname(void *unused)
 {
@@ -348,6 +360,7 @@ static void nvenc_destroy(void *data)
 	bfree(enc);
 }
 
+static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
 static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
 				   bool psycho_aq)
 {
@@ -359,9 +372,18 @@ static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
 
 	enc = bzalloc(sizeof(*enc));
 	enc->encoder = encoder;
-	enc->nvenc = avcodec_find_encoder_by_name("h264_nvenc");
-	if (!enc->nvenc)
-		enc->nvenc = avcodec_find_encoder_by_name("nvenc_h264");
+	enc->is_hevc = is_hevc;
+	if (!is_hevc) {
+
+		enc->nvenc = avcodec_find_encoder_by_name("h264_nvenc");
+		if (!enc->nvenc)
+			enc->nvenc = avcodec_find_encoder_by_name("nvenc_h264");
+	} else {
+		enc->nvenc = avcodec_find_encoder_by_name("hevc_nvenc");
+		if (!enc->nvenc)
+			enc->nvenc = avcodec_find_encoder_by_name("nvenc_hevc");
+	}
+
 	enc->first_packet = true;
 
 	blog(LOG_INFO, "---------------------------------");
@@ -466,10 +488,16 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 			size_t size;
 
 			enc->first_packet = false;
-			obs_extract_avc_headers(av_pkt.data, av_pkt.size,
+			if (!enc->is_hevc)
+				obs_extract_avc_headers(av_pkt.data, av_pkt.size,
 						&new_packet, &size,
 						&enc->header, &enc->header_size,
 						&enc->sei, &enc->sei_size);
+			else
+				obs_extract_hevc_headers(
+					av_pkt.data, av_pkt.size, &new_packet,
+					&size, &enc->header, &enc->header_size,
+					&enc->sei, &enc->sei_size);
 
 			da_copy_array(enc->buffer, new_packet, size);
 			bfree(new_packet);
@@ -482,7 +510,12 @@ static bool nvenc_encode(void *data, struct encoder_frame *frame,
 		packet->data = enc->buffer.array;
 		packet->size = enc->buffer.num;
 		packet->type = OBS_ENCODER_VIDEO;
-		packet->keyframe = obs_avc_keyframe(packet->data, packet->size);
+		if (!enc->is_hevc)
+			packet->keyframe =
+				obs_avc_keyframe(packet->data, packet->size);
+		else
+			packet->keyframe =
+				obs_hevc_keyframe(packet->data, packet->size);
 		*received_packet = true;
 	} else {
 		*received_packet = false;
@@ -646,12 +679,41 @@ static bool nvenc_sei_data(void *data, uint8_t **extra_data, size_t *size)
 	return true;
 }
 
+static void *nvenc_hevc_create(obs_data_t *settings, obs_encoder_t *encoder) {
+	return nvenc_create(settings, encoder, true);
+}
+
+static void *nvenc_h264_create(obs_data_t *settings, obs_encoder_t *encoder) {
+	return nvenc_create(settings, encoder, false);
+}
+
 struct obs_encoder_info nvenc_encoder_info = {
 	.id = "ffmpeg_nvenc",
 	.type = OBS_ENCODER_VIDEO,
 	.codec = "h264",
 	.get_name = nvenc_getname,
-	.create = nvenc_create,
+	.create = nvenc_h264_create,
+	.destroy = nvenc_destroy,
+	.encode = nvenc_encode,
+	.update = nvenc_reconfigure,
+	.get_defaults = nvenc_defaults,
+	.get_properties = nvenc_properties_ffmpeg,
+	.get_extra_data = nvenc_extra_data,
+	.get_sei_data = nvenc_sei_data,
+	.get_video_info = nvenc_video_info,
+#ifdef _WIN32
+	.caps = OBS_ENCODER_CAP_DYN_BITRATE | OBS_ENCODER_CAP_INTERNAL,
+#else
+	.caps = OBS_ENCODER_CAP_DYN_BITRATE,
+#endif
+};
+
+struct obs_encoder_info nvenc_hevc_encoder_info = {
+	.id = "ffmpeg_nvenc_hevc",
+	.type = OBS_ENCODER_VIDEO,
+	.codec = "hevc",
+	.get_name = nvenc_getname_hevc,
+	.create = nvenc_hevc_create,
 	.destroy = nvenc_destroy,
 	.encode = nvenc_encode,
 	.update = nvenc_reconfigure,

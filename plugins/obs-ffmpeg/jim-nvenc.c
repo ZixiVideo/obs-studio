@@ -709,6 +709,10 @@ static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
 
 fail:
 	nvenc_destroy(enc);
+	char const *enc_name = "ffmpeg_nvenc";
+	if (is_hevc)
+		enc_name = "ffmpeg_nvenc_hevc";
+	return obs_encoder_create_rerouted(encoder, enc_name);
 	return NULL;
 }
 

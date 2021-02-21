@@ -223,16 +223,17 @@ size_t obs_parse_avc_header(uint8_t **header, const uint8_t *data, size_t size)
 	return output.bytes.num;
 }
 
-void obs_extract_avc_headers(const uint8_t *packet, size_t size,
-			     uint8_t **new_packet_data, size_t *new_packet_size,
-			     uint8_t **header_data, size_t *header_size,
-			     uint8_t **sei_data, size_t *sei_size)
+
+void obs_extract_avc_headers(const uint8_t* packet, size_t size,
+	uint8_t** new_packet_data, size_t* new_packet_size,
+	uint8_t** header_data, size_t* header_size,
+	uint8_t** sei_data, size_t* sei_size)
 {
 	DARRAY(uint8_t) new_packet;
 	DARRAY(uint8_t) header;
 	DARRAY(uint8_t) sei;
-	const uint8_t *nal_start, *nal_end, *nal_codestart;
-	const uint8_t *end = packet + size;
+	const uint8_t* nal_start, * nal_end, * nal_codestart;
+	const uint8_t* end = packet + size;
 	int type;
 
 	da_init(new_packet);
@@ -258,8 +259,96 @@ void obs_extract_avc_headers(const uint8_t *packet, size_t size,
 
 		if (type == OBS_NAL_SPS || type == OBS_NAL_PPS) {
 			da_push_back_array(header, nal_codestart,
+				nal_end - nal_codestart);
+		}
+		else if (type == OBS_NAL_SEI) {
+			da_push_back_array(sei, nal_codestart,
+				nal_end - nal_codestart);
+
+		}
+		else {
+			da_push_back_array(new_packet, nal_codestart,
+				nal_end - nal_codestart);
+		}
+
+		nal_start = nal_end;
+	}
+
+	*new_packet_data = new_packet.array;
+	*new_packet_size = new_packet.num;
+	*header_data = header.array;
+	*header_size = header.num;
+	*sei_data = sei.array;
+	*sei_size = sei.num;
+}
+
+
+bool obs_hevc_keyframe(const uint8_t* data, size_t size)
+{
+	const uint8_t* nal_start, * nal_end;
+	const uint8_t* end = data + size;
+	int type;
+
+	nal_start = obs_avc_find_startcode(data, end);
+	while (true) {
+		while (nal_start < end && !*(nal_start++))
+			;
+
+		if (nal_start == end)
+			break;
+
+		type = (nal_start[0] & 0x7E) >> 1;
+		if (type >= OBS_NAL_HEVC_FRAME_MIN &&
+		    type <= OBS_NAL_HEVC_FRAME_MAX) {
+			return true;
+		}	
+		nal_end = obs_avc_find_startcode(nal_start, end);
+		nal_start = nal_end;
+	}
+
+	return false;
+}
+
+void obs_extract_hevc_headers(const uint8_t *packet, size_t size,
+			      uint8_t **new_packet_data,
+			      size_t *new_packet_size, uint8_t **header_data,
+			      size_t *header_size, uint8_t **sei_data,
+			      size_t *sei_size)
+{
+	DARRAY(uint8_t) new_packet;
+	DARRAY(uint8_t) header;
+	DARRAY(uint8_t) sei;
+	const uint8_t *nal_start, *nal_end, *nal_codestart;
+	const uint8_t *end = packet + size;
+	int type;
+
+	da_init(new_packet);
+	da_init(header);
+	da_init(sei);
+
+	nal_start = obs_avc_find_startcode(packet, end);
+	nal_end = NULL;
+	while (nal_end != end) {
+		nal_codestart = nal_start;
+
+		while (nal_start < end && !*(nal_start++))
+			;
+
+		if (nal_start == end)
+			break;
+
+		type = (nal_start[0] & 0x7E) >> 1;
+
+		nal_end = obs_avc_find_startcode(nal_start, end);
+		if (!nal_end)
+			nal_end = end;
+
+		if (type == OBS_NAL_HEVC_SPS || type == OBS_NAL_HEVC_PPS ||
+		    type == OBS_NAL_HEVC_VPS) {
+			da_push_back_array(header, nal_codestart,
 					   nal_end - nal_codestart);
-		} else if (type == OBS_NAL_SEI) {
+		} else if (type == OBS_NAL_HEVC_SEI_PREFIX ||
+			   type == OBS_NAL_HEVC_SEI_SUFFIX) {
 			da_push_back_array(sei, nal_codestart,
 					   nal_end - nal_codestart);
 

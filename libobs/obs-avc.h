@@ -59,6 +59,23 @@ EXPORT void obs_extract_avc_headers(const uint8_t *packet, size_t size,
 				    uint8_t **header_data, size_t *header_size,
 				    uint8_t **sei_data, size_t *sei_size);
 
+/* Helpers for HEVC NAL units */
+EXPORT bool obs_hevc_keyframe(const uint8_t *data, size_t size);
+
+EXPORT void obs_extract_hevc_headers(const uint8_t *packet, size_t size,
+			uint8_t **new_packet_data, size_t *new_packet_size,
+			uint8_t **header_data, size_t *header_size,
+			uint8_t **sei_data, size_t *sei_size);
+
+enum {
+	OBS_NAL_HEVC_FRAME_MIN = 16,
+        OBS_NAL_HEVC_FRAME_MAX = 23,
+	OBS_NAL_HEVC_SEI_PREFIX = 39,
+	OBS_NAL_HEVC_SEI_SUFFIX = 40,
+	OBS_NAL_HEVC_VPS = 32,
+	OBS_NAL_HEVC_SPS = 33,
+	OBS_NAL_HEVC_PPS = 34
+};
 #ifdef __cplusplus
 }
 #endif

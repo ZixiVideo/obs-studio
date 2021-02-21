@@ -28,6 +28,7 @@ extern struct obs_output_info ffmpeg_hls_muxer;
 extern struct obs_encoder_info aac_encoder_info;
 extern struct obs_encoder_info opus_encoder_info;
 extern struct obs_encoder_info nvenc_encoder_info;
+extern struct obs_encoder_info nvenc_hevc_encoder_info;
 
 #if LIBAVUTIL_VERSION_INT >= AV_VERSION_INT(55, 27, 100)
 #define LIBAVUTIL_VAAPI_AVAILABLE
@@ -251,6 +252,7 @@ bool obs_module_load(void)
 		}
 #endif
 		obs_register_encoder(&nvenc_encoder_info);
+		obs_register_encoder(&nvenc_hevc_encoder_info);
 	}
 #if !defined(_WIN32) && defined(LIBAVUTIL_VAAPI_AVAILABLE)
 	if (vaapi_supported()) {
