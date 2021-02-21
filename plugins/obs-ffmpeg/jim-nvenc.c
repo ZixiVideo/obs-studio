@@ -655,7 +655,10 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_
 
 fail:
 	nvenc_destroy(enc);
-	return obs_encoder_create_rerouted(encoder, "ffmpeg_nvenc");
+	char const *enc_name = "ffmpeg_nvenc";
+	if (is_hevc)
+		enc_name = "ffmpeg_nvenc_hevc";
+	return obs_encoder_create_rerouted(encoder, enc_name);
 }
 
 static void *nvenc_h264_create(
