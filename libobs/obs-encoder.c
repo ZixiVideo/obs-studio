@@ -1055,9 +1055,14 @@ static void receive_video(void *param, struct video_data *frame)
 	enc_frame.frames = 1;
 	enc_frame.pts = encoder->cur_pts;
 
-	if (really_do_encode)
-		if (do_encode(encoder, &enc_frame))
+	if (really_do_encode) {
+		if (do_encode(encoder, &enc_frame)) {
 			encoder->cur_pts += encoder->timebase_num;
+		}
+	} else {
+		blog(LOG_WARNING,
+		     "obs-encoder::receive_video -> dropping raw input frame");
+	}
 		
 wait_for_audio:
 	profile_end(receive_video_name);

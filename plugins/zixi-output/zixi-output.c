@@ -773,11 +773,15 @@ static int try_connect(struct zixi_stream *stream)
 	cfg.enforce_bitrate = false;
 	info("Bitrate is set @%u\n", cfg.max_bitrate);
 
-	if (stream->is_hevc)
-		cfg.elementary_streams_config.video_codec = ZIXI_VIDEO_CODEC_HEVC;
-	else
+	if (stream->is_hevc) {
+		info("HEVC Stream");
+		cfg.elementary_streams_config.video_codec =
+			ZIXI_VIDEO_CODEC_HEVC;
+	} else {
+		info("H264 Stream");
 		cfg.elementary_streams_config.video_codec =
 			ZIXI_VIDEO_CODEC_H264;
+	}
 
 	cfg.elementary_streams_config.audio_codec = ZIXI_AUDIO_CODEC_AAC;
 	cfg.elementary_streams_config.audio_channels = 2;
@@ -1479,7 +1483,7 @@ struct obs_output_info zixi_output = {
 	.start = zixi_stream_start,
 	.stop = zixi_stream_stop,
 	.get_congestion = zixi_get_congestion,
-	// .source_input_control = zixi_input_control,
+	.source_input_control = zixi_input_control,
 	.update = zixi_output_update,
 	.encoded_packet = zixi_stream_data,
 	.get_defaults = zixi_stream_defaults,
@@ -1557,8 +1561,8 @@ static bool zixi_parse_url(struct dstr *url, char **host, short *port,
 						true_port_end = port_start + 15;
 					}
 					memcpy(temp, &url->array[port_start],
-					       port_end - true_port_end);
-					temp[port_end - true_port_end] = 0;
+					       true_port_end - port_start);
+					temp[true_port_end - port_start] = 0;
 					*port = atoi(temp);
 				} else
 					*port = 2088;
