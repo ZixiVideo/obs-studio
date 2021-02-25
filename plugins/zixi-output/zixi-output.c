@@ -687,7 +687,7 @@ static int try_connect(struct zixi_stream *stream)
 	cfg.user_id = MY_MACHINE_ID;
 	cfg.enc_type = stream->encryption_type;
 
-	if (cfg.enc_type != ZIXI_NO_ENCRYPTION) {
+	if (cfg.enc_type != ZIXI_NO_ENCRYPTION && stream->key.len > 0) {
 		cfg.sz_enc_key = bzalloc(stream->key.len + 1);
 		memcpy(cfg.sz_enc_key, stream->key.array, stream->key.len + 1);
 	} else {
