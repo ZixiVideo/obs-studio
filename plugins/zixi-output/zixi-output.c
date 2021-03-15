@@ -321,12 +321,12 @@ static uint64_t zixi_wrap_ts(uint64_t dts, int64_t num, int64_t den)
 {
 	int64_t i_dts = (int64_t)dts;
 	static const int64_t MAX_PTS = 0x1ffffffff;
-	return (uint64_t)(MAX_PTS + ((i_dts * 90000) * num) / den);
+	return (uint64_t)(MAX_PTS + (i_dts * 90000)) / den;
 }
 
 static uint64_t zixi_convert_ts(uint64_t ts, int64_t num, int64_t den)
 {
-	uint64_t res = ts * num * 90000;
+	uint64_t res = ts * 90000;
 	res /= den;
 	return res;
 }
