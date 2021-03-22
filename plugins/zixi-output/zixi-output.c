@@ -1241,21 +1241,47 @@ static void zixi_add_adts_headers(struct zixi_stream *stream,
 {
 	char adts[7];
 	size_t new_size = in->size + 7;
-	adts[0] = 0xff;
-	adts[1] = 0xf0;
-	adts[1] |= 0x08;
-	adts[1] |= 0x01;
+	/* https://wiki.multimedia.cx/index.php/ADTS
+
+		AAAAAAAA AAAABCCD EEFFFFGH HHIJKLMM MMMMMMMM MMMOOOOO OOOOOOPP (QQQQQQQQ QQQQQQQQ)
+		
+		Letter	Length (bits)	Description
+		A	12	syncword 0xFFF, all bits must be 1
+		B	1	MPEG Version: 0 for MPEG-4, 1 for MPEG-2
+		C	2	Layer: always 0
+		D	1	protection absent, Warning, set to 1 if there is no CRC and 0 if there is CRC
+		E	2	profile, the MPEG-4 Audio Object Type minus 1
+		F	4	MPEG-4 Sampling Frequency Index (15 is forbidden)
+		G	1	private bit, guaranteed never to be used by MPEG, set to 0 when encoding, ignore when decoding
+		H	3	MPEG-4 Channel Configuration (in the case of 0, the channel configuration is sent via an inband PCE)
+		I	1	originality, set to 0 when encoding, ignore when decoding
+		J	1	home, set to 0 when encoding, ignore when decoding
+		K	1	copyrighted id bit, the next bit of a centrally registered copyright identifier, set to 0 when encoding, ignore when decoding
+		L	1	copyright id start, signals that this frame's copyright id bit is the first bit of the copyright id, set to 0 when encoding, ignore when decoding
+		M	13	frame length, this value must include 7 or 9 bytes of header length: FrameLength = (ProtectionAbsent == 1 ? 7 : 9) + size(AACFrame)
+		O	11	Buffer fullness
+		P	2	Number of AAC frames (RDBs) in ADTS frame minus 1, for maximum compatibility always use 1 AAC frame per ADTS frame
+		Q	16	CRC if protection absent is 0
+	*/
+
+	adts[0] = 0xff; // AAAAAAAA
+	adts[1] = 0xf0; // AAAA
+	adts[1] |= 0x08;//BCC
+	adts[1] |= 0x01;//D
 
 	adts[2] = 0;
-	adts[2] = 0x01 << 6;
-	adts[2] |= 0x04 << 2;
-
+	adts[2] = 0x01 << 6; // EE
+	adts[2] |= freq_to_adts(stream->audio_encoder_sample_rate) << 2; // FFFF
+	adts[2] &= 0xFC; // G [reset "first" H bit]
+	adts[2] |= stream->audio_encoder_channels >> 7; // set "first" H bit
+	
 	adts[3] = 0;
-	adts[3] = stream->audio_encoder_channels << 6;
-	/*adts[3] = freq_to_adts(stream->audio_encoder_sample_rate) << 2;*/
-	adts[3] |= (new_size & 0x1FFF) >> 11;
-	adts[4] = (new_size & 0x07FF) >> 3;
-	adts[5] = ((new_size & 0x7) << 5) | 0x1F;
+	adts[3] = stream->audio_encoder_channels << 6; // HH
+	adts[3] &= 0xC3; // IJKL = 0
+
+	adts[3] |= (new_size & 0x1FFF) >> 11; 
+	adts[4] = (new_size & 0x07FF) >> 3; 
+	adts[5] = ((new_size & 0x7) << 5) | 0x1F; 
 	adts[6] = 0xFC;
 	out->drop_priority = in->drop_priority;
 	out->dts = in->dts;
