@@ -694,7 +694,7 @@ static int try_connect(struct zixi_stream *stream)
 		cfg.sz_enc_key = NULL;
 	}
 
-	cfg.max_latency_ms = zixi_latency_from_id(stream->latency_id);
+	cfg.max_latency_ms = stream->latency_id;
 	cfg.port = (unsigned short *)malloc(1 * sizeof(unsigned short));
 	cfg.port[0] = (unsigned short)stream->port;
 	cfg.sz_stream_id = malloc(stream->channel_name.len + 1);

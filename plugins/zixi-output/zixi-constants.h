@@ -3,7 +3,7 @@
 
 #define ZIXI_SERVICE_PROP_SERVICE "zixi_service"
 #define ZIXI_SERVICE_PROP_URL "zixi_url"
-#define ZIXI_SERVICE_PROP_LATENCY_ID "zixi_latency"
+#define ZIXI_SERVICE_PROP_LATENCY_ID "zixi_latency_id"
 #define ZIXI_SERVICE_PROP_LATENCIES_ID "zixi_latencies"
 #define ZIXI_SERVICE_PROP_ENCRYPTION_TYPE "zixi_encryption_id"
 #define ZIXI_SERVICE_PROP_ENCRYPTION_KEY  "zixi_encryption_key"
