@@ -44,12 +44,6 @@ static void rtmp_custom_update_ex(void *data, obs_data_t *settings, bool load_de
 	service->zixi_encryption_key = bstrdup(obs_data_get_string(settings, "zixi_encryption_key"));
 	service->zixi_encoder_feedback = obs_data_get_bool(settings, "zixi_encoder_feedback");
 	service->zixi_bonding = obs_data_get_bool(settings, "zixi_bonding");
-	if (load_defaults) {
-		obs_data_set_int(settings, "zixi_latency_id",6);
-		service->zixi_latency_id = 6;
-		service->zixi_encryption_type = 3;
-		obs_data_set_int(settings, "zixi_encryption_id",3);
-	}
 #endif
 
 	service->server = bstrdup(obs_data_get_string(settings, "server"));
@@ -127,7 +121,7 @@ static obs_properties_t *rtmp_custom_properties(void *unused)
 		OBS_TEXT_DEFAULT);
 	obs_properties_add_text(ppts, "zixi_password", obs_module_text("ZixiPassword"),
 		OBS_TEXT_PASSWORD);
-	obs_properties_add_list(ppts, "zixi_latency", obs_module_text("ZixiLatency"), OBS_COMBO_TYPE_LIST,
+	obs_properties_add_list(ppts, "zixi_latency_id", obs_module_text("ZixiLatency"), OBS_COMBO_TYPE_LIST,
 		OBS_COMBO_FORMAT_INT);
 	obs_properties_add_list(ppts, "zixi_encryption_type", obs_module_text("ZixiEncryptionType"), OBS_COMBO_TYPE_LIST,
 		OBS_COMBO_FORMAT_STRING);
