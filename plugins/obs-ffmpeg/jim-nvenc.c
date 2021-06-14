@@ -459,8 +459,11 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
 		hevc_vui_params->colourPrimaries = 1;
 		hevc_vui_params->transferCharacteristics = 1;
-		hevc_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
 		hevc_config->outputPictureTimingSEI = 1;
+		if (repeat_headers) {
+			hevc_config->repeatSPSPPS = 1;
+			hevc_config->outputAUD = 1;
+		}
 	} else {
 		h264_config->idrPeriod = gop_size;
 		h264_vui_params->videoSignalTypePresentFlag = 1;
@@ -471,7 +474,10 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings)
 			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
 		h264_vui_params->colourPrimaries = 1;
 		h264_vui_params->transferCharacteristics = 1;
-		h264_config->repeatSPSPPS = (repeat_headers) ? 1 : 0;
+		if (repeat_headers) {
+			h264_config->repeatSPSPPS = 1;
+			h264_config->outputAUD = 1;
+		}
 		h264_config->outputPictureTimingSEI = 1;
 	}
 	
