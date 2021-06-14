@@ -52,10 +52,6 @@ find_package(Qt5Xml ${FIND_MODE})
 
 find_package(FFmpeg REQUIRED COMPONENTS avcodec avutil avformat)
 
-if(APPLE)
-	find_package(Qt5MacExtras REQUIRED)
-endif(APPLE)
-
 if(NOT Qt5Widgets_FOUND)
 	if (ENABLE_UI)
 		message(FATAL_ERROR "Failed to find Qt5")
@@ -123,13 +119,17 @@ elseif(APPLE)
 	endif()
 
 elseif(UNIX)
-        find_package(Qt5X11Extras REQUIRED)
+	find_package(Qt5Gui REQUIRED)
+
+	include_directories(${Qt5Gui_PRIVATE_INCLUDE_DIRS})
 
 	set(obs_PLATFORM_SOURCES
 		platform-x11.cpp)
 
-        set(obs_PLATFORM_LIBRARIES
-                Qt5::X11Extras)
+	set(obs_PLATFORM_LIBRARIES
+		${obs_PLATFORM_LIBRARIES}
+		Qt5::Gui
+		Qt5::GuiPrivate)
 
 	if("${CMAKE_SYSTEM_NAME}" MATCHES "FreeBSD")
 		list(APPEND obs_PLATFORM_LIBRARIES
@@ -256,7 +256,8 @@ set(obs_SOURCES
 	obs-proxy-style.cpp
 	locked-checkbox.cpp
 	visibility-checkbox.cpp
-	media-slider.cpp)
+	media-slider.cpp
+	undo-stack-obs.cpp)
 
 set(obs_HEADERS
 	${obs_PLATFORM_HEADERS}
@@ -327,7 +328,8 @@ set(obs_HEADERS
 	log-viewer.hpp
 	obs-proxy-style.hpp
 	obs-proxy-style.hpp
-	media-slider.hpp)
+	media-slider.hpp
+	undo-stack-obs.hpp)
 
 set(obs_importers_HEADERS
 	importers/importers.hpp)
@@ -396,16 +398,6 @@ if(WIN32)
 			OUTPUT_NAME "obs${_output_suffix}")
 endif()
 
-if (ENABLE_WAYLAND)
-	find_package(Qt5Gui REQUIRED)
-	include_directories(${Qt5Gui_PRIVATE_INCLUDE_DIRS})
-
-	set(obs_PLATFORM_LIBRARIES
-		${obs_PLATFORM_LIBRARIES}
-		Qt5::Gui
-		Qt5::GuiPrivate)
-endif()
-
 target_link_libraries(obs
 	libobs
 	Qt5::Widgets
@@ -416,11 +408,6 @@ target_link_libraries(obs
 	${LIBCURL_LIBRARIES}
 	${obs_PLATFORM_LIBRARIES})
 
-if (APPLE)
-	target_link_libraries(obs
-			Qt5::MacExtras)
-	set_target_properties(obs PROPERTIES LINK_FLAGS "-pagezero_size 10000 -image_base 100000000")
-endif()
 set_target_properties(obs PROPERTIES FOLDER "frontend")
 
 define_graphic_modules(obs)

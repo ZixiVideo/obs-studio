@@ -1188,6 +1188,17 @@ static void ApplyEncoderDefaults(OBSData &settings,
 
 #define ADV_ARCHIVE_NAME "adv_archive_aac"
 
+#ifdef __APPLE__
+static void translate_macvth264_encoder(const char *&encoder)
+{
+	if (strcmp(encoder, "vt_h264_hw") == 0) {
+		encoder = "com.apple.videotoolbox.videoencoder.h264.gva";
+	} else if (strcmp(encoder, "vt_h264_sw") == 0) {
+		encoder = "com.apple.videotoolbox.videoencoder.h264";
+	}
+}
+#endif
+
 AdvancedOutput::AdvancedOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 {
 	const char *recType =
@@ -1196,6 +1207,10 @@ AdvancedOutput::AdvancedOutput(OBSBasic *main_) : BasicOutputHandler(main_)
 		config_get_string(main->Config(), "AdvOut", "Encoder");
 	const char *recordEncoder =
 		config_get_string(main->Config(), "AdvOut", "RecEncoder");
+#ifdef __APPLE__
+	translate_macvth264_encoder(streamEncoder);
+	translate_macvth264_encoder(recordEncoder);
+#endif
 
 	ffmpegOutput = astrcmpi(recType, "FFmpeg") == 0;
 	ffmpegRecording =
@@ -2018,12 +2033,11 @@ bool AdvancedOutput::ReplayBufferActive() const
 
 /* ------------------------------------------------------------------------ */
 
-bool BasicOutputHandler::SetupAutoRemux(const char *&ext)
+void BasicOutputHandler::SetupAutoRemux(const char *&ext)
 {
 	bool autoRemux = config_get_bool(main->Config(), "Video", "AutoRemux");
 	if (autoRemux && strcmp(ext, "mp4") == 0)
 		ext = "mkv";
-	return autoRemux;
 }
 
 std::string
@@ -2031,9 +2045,11 @@ BasicOutputHandler::GetRecordingFilename(const char *path, const char *ext,
 					 bool noSpace, bool overwrite,
 					 const char *format, bool ffmpeg)
 {
-	bool remux = !ffmpeg && SetupAutoRemux(ext);
+	if (!ffmpeg)
+		SetupAutoRemux(ext);
+
 	string dst = GetOutputFilename(path, ext, noSpace, overwrite, format);
-	lastRecordingPath = remux ? dst : "";
+	lastRecordingPath = dst;
 	return dst;
 }
 

@@ -297,6 +297,8 @@ struct gs_exports {
 	bool (*gs_duplicator_update_frame)(gs_duplicator_t *duplicator);
 	gs_texture_t *(*gs_duplicator_get_texture)(gs_duplicator_t *duplicator);
 
+	uint32_t (*gs_get_adapter_count)(void);
+
 	gs_texture_t *(*device_texture_create_gdi)(gs_device_t *device,
 						   uint32_t width,
 						   uint32_t height);
@@ -328,8 +330,8 @@ struct gs_exports {
 #elif __linux__
 	struct gs_texture *(*device_texture_create_from_dmabuf)(
 		gs_device_t *device, unsigned int width, unsigned int height,
-		enum gs_color_format color_format, uint32_t n_planes,
-		const int *fds, const uint32_t *strides,
+		uint32_t drm_format, enum gs_color_format color_format,
+		uint32_t n_planes, const int *fds, const uint32_t *strides,
 		const uint32_t *offsets, const uint64_t *modifiers);
 #endif
 };

@@ -219,6 +219,8 @@ struct obs_source_cea_708 {
 	uint64_t timestamp;
 };
 
+#define OBS_SOURCE_FRAME_LINEAR_ALPHA (1 << 0)
+
 /**
  * Source asynchronous video output structure.  Used with
  * obs_source_output_video to output asynchronous video.  Video is buffered as
@@ -245,6 +247,7 @@ struct obs_source_frame {
 	float color_range_min[3];
 	float color_range_max[3];
 	bool flip;
+	uint8_t flags;
 
 	/* used internally by libobs */
 	volatile long refs;
@@ -264,6 +267,7 @@ struct obs_source_frame2 {
 	float color_range_min[3];
 	float color_range_max[3];
 	bool flip;
+	uint8_t flags;
 };
 
 /** Access to the argc/argv used to start OBS. What you see is what you get. */
@@ -696,8 +700,11 @@ EXPORT obs_source_t *obs_load_source(obs_data_t *data);
 /** Send a save signal to sources */
 EXPORT void obs_source_save(obs_source_t *source);
 
-/** Send a load signal to sources */
+/** Send a load signal to sources (soft deprecated; does not load filters) */
 EXPORT void obs_source_load(obs_source_t *source);
+
+/** Send a load signal to sources */
+EXPORT void obs_source_load2(obs_source_t *source);
 
 typedef void (*obs_load_source_cb)(void *private_data, obs_source_t *source);
 
@@ -724,6 +731,7 @@ EXPORT enum obs_obj_type obs_obj_get_type(void *obj);
 EXPORT const char *obs_obj_get_id(void *obj);
 EXPORT bool obs_obj_invalid(void *obj);
 EXPORT void *obs_obj_get_data(void *obj);
+EXPORT bool obs_obj_is_private(void *obj);
 
 typedef bool (*obs_enum_audio_device_cb)(void *data, const char *name,
 					 const char *id);
@@ -898,6 +906,14 @@ EXPORT void obs_source_remove(obs_source_t *source);
 /** Returns true if the source should be released */
 EXPORT bool obs_source_removed(const obs_source_t *source);
 
+/** The 'hidden' flag is not the same as a sceneitem's visibility. It is a
+  * property the determines if it can be found through searches. **/
+/** Simply sets a 'hidden' flag when the source is still alive but shouldn't be found */
+EXPORT void obs_source_set_hidden(obs_source_t *source, bool hidden);
+
+/** Returns the current 'hidden' state on the source */
+EXPORT bool obs_source_is_hidden(obs_source_t *source);
+
 /** Returns capability flags of a source */
 EXPORT uint32_t obs_source_get_output_flags(const obs_source_t *source);
 
@@ -930,6 +946,8 @@ EXPORT obs_properties_t *obs_source_properties(const obs_source_t *source);
 
 /** Updates settings for this source */
 EXPORT void obs_source_update(obs_source_t *source, obs_data_t *settings);
+EXPORT void obs_source_reset_settings(obs_source_t *source,
+				      obs_data_t *settings);
 
 /** Renders a video source. */
 EXPORT void obs_source_video_render(obs_source_t *source);
@@ -1023,6 +1041,10 @@ EXPORT void obs_source_enum_active_tree(obs_source_t *source,
 					obs_source_enum_proc_t enum_callback,
 					void *param);
 
+EXPORT void obs_source_enum_full_tree(obs_source_t *source,
+				      obs_source_enum_proc_t enum_callback,
+				      void *param);
+
 /** Returns true if active, false if not */
 EXPORT bool obs_source_active(const obs_source_t *source);
 
@@ -1100,6 +1122,9 @@ EXPORT void obs_source_enum_filters(obs_source_t *source,
 /** Gets a filter of a source by its display name. */
 EXPORT obs_source_t *obs_source_get_filter_by_name(obs_source_t *source,
 						   const char *name);
+
+/** Gets the number of filters the source has. */
+EXPORT size_t obs_source_filter_count(const obs_source_t *source);
 
 EXPORT void obs_source_copy_filters(obs_source_t *dst, obs_source_t *src);
 EXPORT void obs_source_copy_single_filter(obs_source_t *dst,
@@ -1184,6 +1209,10 @@ obs_source_get_monitoring_type(const obs_source_t *source);
 /** Gets private front-end settings data.  This data is saved/loaded
  * automatically.  Returns an incremented reference. */
 EXPORT obs_data_t *obs_source_get_private_settings(obs_source_t *item);
+
+EXPORT obs_data_array_t *obs_source_backup_filters(obs_source_t *source);
+EXPORT void obs_source_restore_filters(obs_source_t *source,
+				       obs_data_array_t *array);
 
 /* ------------------------------------------------------------------------- */
 /* Functions used by sources */
@@ -1544,6 +1573,18 @@ EXPORT obs_sceneitem_t *obs_scene_find_source_recursive(obs_scene_t *scene,
 EXPORT obs_sceneitem_t *obs_scene_find_sceneitem_by_id(obs_scene_t *scene,
 						       int64_t id);
 
+/** Gets scene by name, increments the reference */
+static inline obs_scene_t *obs_get_scene_by_name(const char *name)
+{
+	obs_source_t *source = obs_get_source_by_name(name);
+	obs_scene_t *scene = obs_scene_from_source(source);
+	if (!scene) {
+		obs_source_release(source);
+		return NULL;
+	}
+	return scene;
+}
+
 /** Enumerates sources within a scene */
 EXPORT void obs_scene_enum_items(obs_scene_t *scene,
 				 bool (*callback)(obs_scene_t *,
@@ -1564,6 +1605,8 @@ obs_scene_reorder_items2(obs_scene_t *scene,
 			 struct obs_sceneitem_order_info *item_order,
 			 size_t item_order_size);
 
+EXPORT bool obs_source_is_scene(const obs_source_t *source);
+
 /** Adds/creates a new scene item for a source */
 EXPORT obs_sceneitem_t *obs_scene_add(obs_scene_t *scene, obs_source_t *source);
 
@@ -1577,6 +1620,29 @@ EXPORT void obs_sceneitem_release(obs_sceneitem_t *item);
 
 /** Removes a scene item. */
 EXPORT void obs_sceneitem_remove(obs_sceneitem_t *item);
+
+/** Adds a scene item. */
+EXPORT void obs_sceneitems_add(obs_scene_t *scene, obs_data_array_t *data);
+
+/** Saves Sceneitem into an array, arr **/
+EXPORT void obs_sceneitem_save(obs_sceneitem_t *item, obs_data_array_t *arr);
+
+/** Set the ID of a sceneitem */
+EXPORT void obs_sceneitem_set_id(obs_sceneitem_t *sceneitem, int64_t id);
+
+/** Tries to find the sceneitem of the source in a given scene. Returns NULL if not found */
+EXPORT obs_sceneitem_t *obs_scene_sceneitem_from_source(obs_scene_t *scene,
+							obs_source_t *source);
+
+/** Save all the transform states for a current scene's sceneitems */
+EXPORT obs_data_t *obs_scene_save_transform_states(obs_scene_t *scene,
+						   bool all_items);
+
+/** Load all the transform states of sceneitems in that scene */
+EXPORT void obs_scene_load_transform_states(const char *state);
+
+/**  Gets a sceneitem's order in its scene */
+EXPORT int obs_sceneitem_get_order_position(obs_sceneitem_t *item);
 
 /** Gets the scene parent associated with the scene item. */
 EXPORT obs_scene_t *obs_sceneitem_get_scene(const obs_sceneitem_t *item);
@@ -1710,8 +1776,35 @@ EXPORT void obs_sceneitem_group_enum_items(obs_sceneitem_t *group,
 /** Gets the group from its source, or NULL if not a group */
 EXPORT obs_scene_t *obs_group_from_source(const obs_source_t *source);
 
+static inline obs_scene_t *
+obs_group_or_scene_from_source(const obs_source_t *source)
+{
+	obs_scene_t *s = obs_scene_from_source(source);
+	return s ? s : obs_group_from_source(source);
+}
+
 EXPORT void obs_sceneitem_defer_group_resize_begin(obs_sceneitem_t *item);
 EXPORT void obs_sceneitem_defer_group_resize_end(obs_sceneitem_t *item);
+
+EXPORT void obs_sceneitem_set_show_transition(obs_sceneitem_t *item,
+					      obs_source_t *transition);
+EXPORT void obs_sceneitem_set_show_transition_duration(obs_sceneitem_t *item,
+						       uint32_t duration_ms);
+EXPORT obs_source_t *obs_sceneitem_get_show_transition(obs_sceneitem_t *item);
+EXPORT uint32_t
+obs_sceneitem_get_show_transition_duration(obs_sceneitem_t *item);
+EXPORT void obs_sceneitem_set_hide_transition(obs_sceneitem_t *item,
+					      obs_source_t *transition);
+EXPORT void obs_sceneitem_set_hide_transition_duration(obs_sceneitem_t *item,
+						       uint32_t duration_ms);
+EXPORT obs_source_t *obs_sceneitem_get_hide_transition(obs_sceneitem_t *item);
+EXPORT uint32_t
+obs_sceneitem_get_hide_transition_duration(obs_sceneitem_t *item);
+EXPORT void obs_sceneitem_do_transition(obs_sceneitem_t *item, bool visible);
+EXPORT void obs_sceneitem_transition_load(struct obs_scene_item *item,
+					  obs_data_t *data, bool show);
+EXPORT obs_data_t *obs_sceneitem_transition_save(struct obs_scene_item *item,
+						 bool show);
 
 /* ------------------------------------------------------------------------- */
 /* Outputs */

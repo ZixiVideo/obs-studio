@@ -232,7 +232,7 @@ void gs_device::InitCompiler()
 	      "DirectX components</a> that OBS Studio requires.";
 }
 
-void gs_device::InitFactory(uint32_t adapterIdx)
+void gs_device::InitFactory()
 {
 	HRESULT hr;
 	IID factoryIID = (GetWinVer() >= 0x602) ? dxgiFactory2
@@ -241,8 +241,50 @@ void gs_device::InitFactory(uint32_t adapterIdx)
 	hr = CreateDXGIFactory1(factoryIID, (void **)factory.Assign());
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to create DXGIFactory", hr);
+}
 
-	hr = factory->EnumAdapters1(adapterIdx, &adapter);
+#define VENDOR_ID_INTEL 0x8086
+#define IGPU_MEM (512 * 1024 * 1024)
+
+void gs_device::ReorderAdapters(uint32_t &adapterIdx)
+{
+	std::vector<uint32_t> adapterOrder;
+	ComPtr<IDXGIAdapter> adapter;
+	DXGI_ADAPTER_DESC desc;
+	uint32_t iGPUIndex = 0;
+	bool hasIGPU = false;
+	bool hasDGPU = false;
+	int idx = 0;
+
+	while (SUCCEEDED(factory->EnumAdapters(idx, &adapter))) {
+		if (SUCCEEDED(adapter->GetDesc(&desc))) {
+			if (desc.VendorId == VENDOR_ID_INTEL) {
+				if (desc.DedicatedVideoMemory <= IGPU_MEM) {
+					hasIGPU = true;
+					iGPUIndex = (uint32_t)idx;
+				} else {
+					hasDGPU = true;
+				}
+			}
+		}
+
+		adapterOrder.push_back((uint32_t)idx++);
+	}
+
+	/* Intel specific adapter check for Intel integrated and Intel
+	 * dedicated. If both exist, then change adapter priority so that the
+	 * integrated comes first for the sake of improving overall
+	 * performance */
+	if (hasIGPU && hasDGPU) {
+		adapterOrder.erase(adapterOrder.begin() + iGPUIndex);
+		adapterOrder.insert(adapterOrder.begin(), iGPUIndex);
+		adapterIdx = adapterOrder[adapterIdx];
+	}
+}
+
+void gs_device::InitAdapter(uint32_t adapterIdx)
+{
+	HRESULT hr = factory->EnumAdapters1(adapterIdx, &adapter);
 	if (FAILED(hr))
 		throw UnsupportedHWError("Failed to enumerate DXGIAdapter", hr);
 }
@@ -787,7 +829,9 @@ gs_device::gs_device(uint32_t adapterIdx)
 	}
 
 	InitCompiler();
-	InitFactory(adapterIdx);
+	InitFactory();
+	ReorderAdapters(adapterIdx);
+	InitAdapter(adapterIdx);
 	InitDevice(adapterIdx);
 	device_set_render_target(this, NULL, NULL);
 }
@@ -1468,13 +1512,21 @@ static void device_load_texture_internal(gs_device_t *device, gs_texture_t *tex,
 
 void device_load_texture(gs_device_t *device, gs_texture_t *tex, int unit)
 {
-	ID3D11ShaderResourceView *view = tex ? tex->shaderRes : NULL;
+	ID3D11ShaderResourceView *view;
+	if (tex)
+		view = tex->shaderRes;
+	else
+		view = NULL;
 	return device_load_texture_internal(device, tex, unit, view);
 }
 
 void device_load_texture_srgb(gs_device_t *device, gs_texture_t *tex, int unit)
 {
-	ID3D11ShaderResourceView *view = tex ? tex->shaderResLinear : NULL;
+	ID3D11ShaderResourceView *view;
+	if (tex)
+		view = tex->shaderResLinear;
+	else
+		view = NULL;
 	return device_load_texture_internal(device, tex, unit, view);
 }
 
@@ -2857,4 +2909,30 @@ extern "C" EXPORT void device_unregister_loss_callbacks(gs_device_t *device,
 			break;
 		}
 	}
+}
+
+uint32_t gs_get_adapter_count(void)
+{
+	uint32_t count = 0;
+
+	const IID factoryIID = (GetWinVer() >= 0x602) ? dxgiFactory2
+						      : __uuidof(IDXGIFactory1);
+	ComPtr<IDXGIFactory1> factory;
+	HRESULT hr = CreateDXGIFactory1(factoryIID, (void **)factory.Assign());
+	if (SUCCEEDED(hr)) {
+		ComPtr<IDXGIAdapter1> adapter;
+		for (UINT i = 0;
+		     factory->EnumAdapters1(i, adapter.Assign()) == S_OK; ++i) {
+			DXGI_ADAPTER_DESC desc;
+			if (SUCCEEDED(adapter->GetDesc(&desc))) {
+				/* ignore Microsoft's 'basic' renderer' */
+				if (desc.VendorId != 0x1414 &&
+				    desc.DeviceId != 0x8c) {
+					++count;
+				}
+			}
+		}
+	}
+
+	return count;
 }

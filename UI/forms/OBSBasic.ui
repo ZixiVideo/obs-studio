@@ -586,6 +586,9 @@
       <string>Paste.Filters</string>
      </property>
     </action>
+    <addaction name="actionMainUndo"/>
+    <addaction name="actionMainRedo"/>
+    <addaction name="separator"/>
     <addaction name="actionCopySource"/>
     <addaction name="actionPasteRef"/>
     <addaction name="actionPasteDup"/>
@@ -599,6 +602,7 @@
     <addaction name="actionLockPreview"/>
     <addaction name="separator"/>
     <addaction name="actionAdvAudioProperties"/>
+    <addaction name="separator"/>
    </widget>
    <widget class="QMenu" name="profileMenu">
     <property name="title">
@@ -1214,10 +1218,10 @@
              <string> ms</string>
             </property>
             <property name="minimum">
-             <number>2</number>
+             <number>50</number>
             </property>
             <property name="maximum">
-             <number>10000</number>
+             <number>20000</number>
             </property>
             <property name="singleStep">
              <number>50</number>
@@ -2032,6 +2036,22 @@
    </property>
    <property name="text">
     <string>Basic.MainMenu.View.ContextBar</string>
+   </property>
+  </action>
+  <action name="actionMainUndo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Undo.Undo</string>
+   </property>
+  </action>
+  <action name="actionMainRedo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Undo.Redo</string>
    </property>
   </action>
  </widget>

@@ -621,6 +621,9 @@ struct obs_source {
 	 * to handle things but it's the best option) */
 	bool removed;
 
+	/*  used to indicate if the source should show up when queried for user ui */
+	bool temp_removed;
+
 	bool active;
 	bool showing;
 
@@ -682,6 +685,7 @@ struct obs_source {
 	int async_channel_count;
 	long async_rotation;
 	bool async_flip;
+	bool async_linear_alpha;
 	bool async_active;
 	bool async_update_texture;
 	bool async_unbuffered;

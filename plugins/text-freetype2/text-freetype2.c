@@ -248,8 +248,6 @@ static void ft2_source_render(void *data, gs_effect_t *effect)
 	if (srcdata->text == NULL || *srcdata->text == 0)
 		return;
 
-	const bool previous = gs_set_linear_srgb(true);
-
 	gs_reset_blend_state();
 	if (srcdata->outline_text)
 		draw_outlines(srcdata);
@@ -258,8 +256,6 @@ static void ft2_source_render(void *data, gs_effect_t *effect)
 
 	draw_uv_vbuffer(srcdata->vbuf, srcdata->tex, srcdata->draw_effect,
 			(uint32_t)wcslen(srcdata->text) * 6);
-
-	gs_set_linear_srgb(previous);
 
 	UNUSED_PARAMETER(effect);
 }
@@ -488,7 +484,7 @@ skip_font_load:
 		}
 	} else {
 		const char *tmp = obs_data_get_string(settings, "text");
-		if (!tmp || !*tmp)
+		if (!tmp)
 			goto error;
 
 		if (srcdata->text != NULL) {
@@ -531,9 +527,14 @@ static void *ft2_source_create(obs_data_t *settings, obs_source_t *source,
 
 	obs_data_set_default_string(font_obj, "face", DEFAULT_FACE);
 	obs_data_set_default_int(font_obj, "size", font_size);
+	obs_data_set_default_int(font_obj, "flags", 0);
+	obs_data_set_default_string(font_obj, "style", "");
 	obs_data_set_default_obj(settings, "font", font_obj);
 
 	obs_data_set_default_bool(settings, "antialiasing", true);
+	obs_data_set_default_bool(settings, "word_wrap", false);
+	obs_data_set_default_bool(settings, "outline", false);
+	obs_data_set_default_bool(settings, "drop_shadow", false);
 
 	obs_data_set_default_int(settings, "log_lines", 6);
 

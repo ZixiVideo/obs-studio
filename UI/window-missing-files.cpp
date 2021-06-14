@@ -68,7 +68,7 @@ QWidget *MissingFilesPathItemDelegate::createEditor(
 	};
 
 	QHBoxLayout *layout = new QHBoxLayout();
-	layout->setMargin(0);
+	layout->setContentsMargins(0, 0, 0, 0);
 	layout->setSpacing(0);
 
 	QLineEdit *text = new QLineEdit();
@@ -268,9 +268,11 @@ QVariant MissingFilesModel::data(const QModelIndex &index, int role) const
 		obs_source_t *source = obs_get_source_by_name(
 			files[index.row()].source.toStdString().c_str());
 
-		result = main->GetSourceIcon(obs_source_get_id(source));
+		if (source) {
+			result = main->GetSourceIcon(obs_source_get_id(source));
 
-		obs_source_release(source);
+			obs_source_release(source);
+		}
 	} else if (role == Qt::FontRole &&
 		   index.column() == MissingFilesColumn::State) {
 		QFont font = QFont();
@@ -501,11 +503,11 @@ OBSMissingFiles::OBSMissingFiles(obs_missing_files_t *files, QWidget *parent)
 
 	fileStore = files;
 
-	connect(ui->doneButton, &QPushButton::pressed, this,
+	connect(ui->doneButton, &QPushButton::clicked, this,
 		&OBSMissingFiles::saveFiles);
-	connect(ui->browseButton, &QPushButton::pressed, this,
+	connect(ui->browseButton, &QPushButton::clicked, this,
 		&OBSMissingFiles::browseFolders);
-	connect(ui->cancelButton, &QPushButton::pressed, this,
+	connect(ui->cancelButton, &QPushButton::clicked, this,
 		&OBSMissingFiles::close);
 	connect(filesModel, SIGNAL(dataChanged(QModelIndex, QModelIndex)), this,
 		SLOT(dataChanged()));
@@ -557,7 +559,6 @@ void OBSMissingFiles::saveFiles()
 	}
 
 	QDialog::accept();
-	destroy();
 }
 
 void OBSMissingFiles::browseFolders()

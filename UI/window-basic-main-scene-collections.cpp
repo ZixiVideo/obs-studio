@@ -73,7 +73,7 @@ void EnumSceneCollections(std::function<bool(const char *, const char *)> &&cb)
 	os_globfree(glob);
 }
 
-static bool SceneCollectionExists(const char *findName)
+bool SceneCollectionExists(const char *findName)
 {
 	bool found = false;
 	auto func = [&](const char *name, const char *) {
@@ -151,17 +151,22 @@ bool OBSBasic::AddSceneCollection(bool create_new, const QString &qname)
 		}
 	}
 
-	SaveProjectNow();
+	auto new_collection = [this, create_new](const std::string &file,
+						 const std::string &name) {
+		SaveProjectNow();
 
-	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollection",
-			  name.c_str());
-	config_set_string(App()->GlobalConfig(), "Basic", "SceneCollectionFile",
-			  file.c_str());
-	if (create_new) {
-		CreateDefaultScene(false);
-	}
-	SaveProjectNow();
-	RefreshSceneCollections();
+		config_set_string(App()->GlobalConfig(), "Basic",
+				  "SceneCollection", name.c_str());
+		config_set_string(App()->GlobalConfig(), "Basic",
+				  "SceneCollectionFile", file.c_str());
+		if (create_new) {
+			CreateDefaultScene(false);
+		}
+		SaveProjectNow();
+		RefreshSceneCollections();
+	};
+
+	new_collection(file, name);
 
 	blog(LOG_INFO, "Added scene collection '%s' (%s, %s.json)",
 	     name.c_str(), create_new ? "clean" : "duplicate", file.c_str());
@@ -245,11 +250,13 @@ void OBSBasic::on_actionRenameSceneCollection_triggered()
 {
 	std::string name;
 	std::string file;
+	std::string oname;
 
 	std::string oldFile = config_get_string(App()->GlobalConfig(), "Basic",
 						"SceneCollectionFile");
 	const char *oldName = config_get_string(App()->GlobalConfig(), "Basic",
 						"SceneCollection");
+	oname = std::string(oldName);
 
 	bool success = GetSceneCollectionName(this, name, file, oldName);
 	if (!success)
@@ -331,6 +338,7 @@ void OBSBasic::on_actionRemoveSceneCollection_triggered()
 
 	oldFile.insert(0, path);
 	oldFile += ".json";
+
 	os_unlink(oldFile.c_str());
 	oldFile += ".bak";
 	os_unlink(oldFile.c_str());
@@ -410,6 +418,7 @@ void OBSBasic::ChangeSceneCollection()
 
 	const char *oldName = config_get_string(App()->GlobalConfig(), "Basic",
 						"SceneCollection");
+
 	if (action->text().compare(QT_UTF8(oldName)) == 0) {
 		action->setChecked(true);
 		return;

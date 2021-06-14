@@ -20,6 +20,7 @@
 #include <QStackedWidget>
 #include <QDir>
 #include <QGroupBox>
+#include <QObject>
 #include "double-slider.hpp"
 #include "slider-ignorewheel.hpp"
 #include "spinbox-ignorewheel.hpp"
@@ -31,6 +32,9 @@
 
 #include <cstdlib>
 #include <initializer_list>
+#include <obs-data.h>
+#include <obs.h>
+#include <qtimer.h>
 #include <string>
 
 using namespace std;
@@ -171,13 +175,14 @@ void OBSPropertiesView::GetScrollPos(int &h, int &v)
 OBSPropertiesView::OBSPropertiesView(OBSData settings_, void *obj_,
 				     PropertiesReloadCallback reloadCallback,
 				     PropertiesUpdateCallback callback_,
-				     int minSize_)
+				     PropertiesVisualUpdateCb cb_, int minSize_)
 	: VScrollArea(nullptr),
 	  properties(nullptr, obs_properties_destroy),
 	  settings(settings_),
 	  obj(obj_),
 	  reloadCallback(reloadCallback),
 	  callback(callback_),
+	  cb(cb_),
 	  minSize(minSize_)
 {
 	setFrameShape(QFrame::NoFrame);
@@ -387,6 +392,14 @@ void OBSPropertiesView::AddFloat(obs_property_t *prop, QFormLayout *layout,
 	double maxVal = obs_property_float_max(prop);
 	double stepVal = obs_property_float_step(prop);
 	const char *suffix = obs_property_float_suffix(prop);
+
+	if (stepVal < 1.0) {
+		int decimals = (int)(log10(1.0 / stepVal) + 0.99);
+		constexpr int sane_limit = 8;
+		decimals = std::min(decimals, sane_limit);
+		if (decimals > spin->decimals())
+			spin->setDecimals(decimals);
+	}
 
 	spin->setMinimum(minVal);
 	spin->setMaximum(maxVal);
@@ -1885,6 +1898,12 @@ void WidgetInfo::ControlChanged()
 	const char *setting = obs_property_name(property);
 	obs_property_type type = obs_property_get_type(property);
 
+	if (!recently_updated) {
+		old_settings_cache = obs_data_create();
+		obs_data_apply(old_settings_cache, view->settings);
+		obs_data_release(old_settings_cache);
+	}
+
 	switch (type) {
 	case OBS_PROPERTY_INVALID:
 		return;
@@ -1933,8 +1952,32 @@ void WidgetInfo::ControlChanged()
 		break;
 	}
 
-	if (view->callback && !view->deferUpdate)
-		view->callback(view->obj, view->settings);
+	if (!recently_updated) {
+		recently_updated = true;
+		update_timer = new QTimer;
+		connect(update_timer, &QTimer::timeout,
+			[this, &ru = recently_updated]() {
+				if (view->callback && !view->deferUpdate) {
+					view->callback(view->obj,
+						       old_settings_cache,
+						       view->settings);
+				}
+
+				ru = false;
+			});
+		connect(update_timer, &QTimer::timeout, &QTimer::deleteLater);
+		update_timer->setSingleShot(true);
+	}
+
+	if (update_timer) {
+		update_timer->stop();
+		update_timer->start(500);
+	} else {
+		blog(LOG_DEBUG, "No update timer or no callback!");
+	}
+
+	if (view->cb && !view->deferUpdate)
+		view->cb(view->obj, view->settings);
 
 	view->SignalChanged();
 

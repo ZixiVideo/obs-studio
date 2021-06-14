@@ -559,10 +559,19 @@ EXPORT gs_shader_t *gs_vertexshader_create_from_file(const char *file,
 EXPORT gs_shader_t *gs_pixelshader_create_from_file(const char *file,
 						    char **error_string);
 
+enum gs_image_alpha_mode {
+	GS_IMAGE_ALPHA_STRAIGHT,
+	GS_IMAGE_ALPHA_PREMULTIPLY_SRGB,
+	GS_IMAGE_ALPHA_PREMULTIPLY,
+};
+
 EXPORT gs_texture_t *gs_texture_create_from_file(const char *file);
 EXPORT uint8_t *gs_create_texture_file_data(const char *file,
 					    enum gs_color_format *format,
 					    uint32_t *cx, uint32_t *cy);
+EXPORT uint8_t *gs_create_texture_file_data2(
+	const char *file, enum gs_image_alpha_mode alpha_mode,
+	enum gs_color_format *format, uint32_t *cx, uint32_t *cy);
 
 #define GS_FLIP_U (1 << 0)
 #define GS_FLIP_V (1 << 1)
@@ -874,6 +883,8 @@ EXPORT void gs_duplicator_destroy(gs_duplicator_t *duplicator);
 EXPORT bool gs_duplicator_update_frame(gs_duplicator_t *duplicator);
 EXPORT gs_texture_t *gs_duplicator_get_texture(gs_duplicator_t *duplicator);
 
+EXPORT uint32_t gs_get_adapter_count(void);
+
 /** creates a windows GDI-lockable texture */
 EXPORT gs_texture_t *gs_texture_create_gdi(uint32_t width, uint32_t height);
 
@@ -915,12 +926,11 @@ EXPORT void gs_unregister_loss_callbacks(void *data);
 
 #elif __linux__
 
-EXPORT gs_texture_t *
-gs_texture_create_from_dmabuf(unsigned int width, unsigned int height,
-			      enum gs_color_format color_format,
-			      uint32_t n_planes, const int *fds,
-			      const uint32_t *strides, const uint32_t *offsets,
-			      const uint64_t *modifiers);
+EXPORT gs_texture_t *gs_texture_create_from_dmabuf(
+	unsigned int width, unsigned int height, uint32_t drm_format,
+	enum gs_color_format color_format, uint32_t n_planes, const int *fds,
+	const uint32_t *strides, const uint32_t *offsets,
+	const uint64_t *modifiers);
 
 #endif
 

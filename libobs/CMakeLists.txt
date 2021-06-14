@@ -39,7 +39,7 @@ if(UNIX)
 		set(HAVE_PULSEAUDIO "0")
 		set(USE_XINPUT "0")
 	endif()
-	find_package(DBus QUIET)
+	find_package(Gio QUIET)
 else()
 	set(HAVE_DBUS "0")
 	set(HAVE_PULSEAUDIO "0")
@@ -224,13 +224,15 @@ elseif(UNIX)
 		set(libobs_audio_monitoring_SOURCES
 			audio-monitoring/null/null-audio-monitoring.c)
 	endif()
-	if(DBUS_FOUND)
+	if(GIO_FOUND)
 		set(libobs_PLATFORM_SOURCES ${libobs_PLATFORM_SOURCES}
 			util/platform-nix-dbus.c)
-		include_directories(${DBUS_INCLUDE_DIRS})
+		include_directories(${GIO_INCLUDE_DIRS})
+		add_definitions(
+			${GIO_DEFINITIONS})
 		set(libobs_PLATFORM_DEPS
 			${libobs_PLATFORM_DEPS}
-			${DBUS_LIBRARIES})
+			${GIO_LIBRARIES})
 	endif()
 
 	include_directories(
@@ -332,6 +334,7 @@ set(libobs_graphics_HEADERS
 	graphics/libnsgif/libnsgif.h
 	graphics/device-exports.h
 	graphics/image-file.h
+	graphics/srgb.h
 	graphics/vec2.h
 	graphics/vec4.h
 	graphics/matrix3.h
