@@ -490,6 +490,8 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings,
 		}
 		h264_config->outputPictureTimingSEI = 1;
 	}
+	
+	enc->bframes = bf;
 
 	/*h264_config->sliceMode = 3;
 	h264_config->sliceModeData = 1;
@@ -1063,7 +1065,8 @@ static bool nvenc_encode_tex(void *data, uint32_t handle, int64_t pts,
 		circlebuf_pop_front(&enc->dts_list, &dts, sizeof(dts));
 
 		/* subtract bframe delay from dts */
-		dts -= (int64_t)enc->bframes * packet->timebase_num;
+		if (enc->bframes > 0)
+			dts -= enc->bframes * packet->timebase_num;
 
 		*received_packet = true;
 		packet->data = enc->packet_data.array;
