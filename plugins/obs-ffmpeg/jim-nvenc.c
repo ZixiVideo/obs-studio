@@ -465,64 +465,68 @@ static bool init_encoder(struct nvenc_data *enc, obs_data_t *settings,
 		hevc_vui_params->videoFullRangeFlag =
 			(voi->range == VIDEO_RANGE_FULL);
 		hevc_vui_params->colourDescriptionPresentFlag = 1;
-		hevc_vui_params->colourMatrix =
-			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
-		hevc_vui_params->colourPrimaries = 1;
-		hevc_vui_params->transferCharacteristics = 1;
 		hevc_config->outputPictureTimingSEI = 1;
 		if (repeat_headers) {
 			hevc_config->repeatSPSPPS = 1;
 			hevc_config->outputAUD = 1;
 		}
+
+		switch (voi->colorspace) {
+		case VIDEO_CS_601:
+			hevc_vui_params->colourPrimaries = 6;
+			hevc_vui_params->transferCharacteristics = 6;
+			hevc_vui_params->colourMatrix = 6;
+			break;
+		case VIDEO_CS_DEFAULT:
+		case VIDEO_CS_709:
+			hevc_vui_params->colourPrimaries = 1;
+			hevc_vui_params->transferCharacteristics = 1;
+			hevc_vui_params->colourMatrix = 1;
+			break;
+		case VIDEO_CS_SRGB:
+			hevc_vui_params->colourPrimaries = 1;
+			hevc_vui_params->transferCharacteristics = 13;
+			hevc_vui_params->colourMatrix = 1;
+			break;
+		}
+
 	} else {
+		h264_config->sliceMode = 3;
+		h264_config->sliceModeData = 1;
+		h264_config->useBFramesAsRef = NV_ENC_BFRAME_REF_MODE_DISABLED;
 		h264_config->idrPeriod = gop_size;
 		h264_vui_params->videoSignalTypePresentFlag = 1;
 		h264_vui_params->videoFullRangeFlag =
 			(voi->range == VIDEO_RANGE_FULL);
 		h264_vui_params->colourDescriptionPresentFlag = 1;
-		h264_vui_params->colourMatrix =
-			(voi->colorspace == VIDEO_CS_709) ? 1 : 5;
-		h264_vui_params->colourPrimaries = 1;
-		h264_vui_params->transferCharacteristics = 1;
 		if (repeat_headers) {
 			h264_config->repeatSPSPPS = 1;
 			h264_config->outputAUD = 1;
 		}
+
+		switch (voi->colorspace) {
+		case VIDEO_CS_601:
+			h264_vui_params->colourPrimaries = 6;
+			h264_vui_params->transferCharacteristics = 6;
+			h264_vui_params->colourMatrix = 6;
+			break;
+		case VIDEO_CS_DEFAULT:
+		case VIDEO_CS_709:
+			h264_vui_params->colourPrimaries = 1;
+			h264_vui_params->transferCharacteristics = 1;
+			h264_vui_params->colourMatrix = 1;
+			break;
+		case VIDEO_CS_SRGB:
+			h264_vui_params->colourPrimaries = 1;
+			h264_vui_params->transferCharacteristics = 13;
+			h264_vui_params->colourMatrix = 1;
+			break;
+		}
+
 		h264_config->outputPictureTimingSEI = 1;
 	}
 	
 	enc->bframes = bf;
-
-	/*h264_config->sliceMode = 3;
-	h264_config->sliceModeData = 1;
-
-	h264_config->useBFramesAsRef = NV_ENC_BFRAME_REF_MODE_DISABLED;
-
-	vui_params->videoSignalTypePresentFlag = 1;
-	vui_params->videoFullRangeFlag = (voi->range == VIDEO_RANGE_FULL);
-	vui_params->colourDescriptionPresentFlag = 1;
-
-	switch (voi->colorspace) {
-	case VIDEO_CS_601:
-		vui_params->colourPrimaries = 6;
-		vui_params->transferCharacteristics = 6;
-		vui_params->colourMatrix = 6;
-		break;
-	case VIDEO_CS_DEFAULT:
-	case VIDEO_CS_709:
-		vui_params->colourPrimaries = 1;
-		vui_params->transferCharacteristics = 1;
-		vui_params->colourMatrix = 1;
-		break;
-	case VIDEO_CS_SRGB:
-		vui_params->colourPrimaries = 1;
-		vui_params->transferCharacteristics = 13;
-		vui_params->colourMatrix = 1;
-		break;
-	}*/`
-
-	enc->bframes = bf;
-
 	/* lookahead */
 	const bool use_profile_lookahead = config->rcParams.enableLookahead;
 	lookahead = nv_get_cap(enc, NV_ENC_CAPS_SUPPORT_LOOKAHEAD) &&
@@ -682,8 +686,7 @@ static bool init_textures(struct nvenc_data *enc)
 
 static void nvenc_destroy(void *data);
 
-static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
-static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
+static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc,
 				   bool psycho_aq)
 {
 	NV_ENCODE_API_FUNCTION_LIST init = {NV_ENCODE_API_FUNCTION_LIST_VER};
@@ -724,7 +727,7 @@ fail:
 	return NULL;
 }
 
-static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
+static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
 {
 	/* this encoder requires shared textures, this cannot be used on a
 	 * gpu other than the one OBS is currently running on. */
@@ -749,11 +752,11 @@ static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
 
 	const bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
 	struct nvenc_data *enc =
-		nvenc_create_internal(settings, encoder, psycho_aq);
+		nvenc_create_internal(settings, encoder,is_hevc, psycho_aq);
 	if ((enc == NULL) && psycho_aq) {
 		blog(LOG_WARNING, "[jim-nvenc] nvenc_create_internal failed, "
 				  "trying again without Psycho Visual Tuning");
-		enc = nvenc_create_internal(settings, encoder, false);
+		enc = nvenc_create_internal(settings, encoder, is_hevc, false);
 	}
 
 	if (enc) {

@@ -360,9 +360,8 @@ static void nvenc_destroy(void *data)
 	bfree(enc);
 }
 
-static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
 static void *nvenc_create_internal(obs_data_t *settings, obs_encoder_t *encoder,
-				   bool psycho_aq)
+			       bool is_hevc, bool psycho_aq)
 {
 	struct nvenc_encoder *enc;
 
@@ -411,15 +410,15 @@ fail:
 	return NULL;
 }
 
-static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder)
+static void *nvenc_create(obs_data_t *settings, obs_encoder_t *encoder, bool is_hevc)
 {
 	bool psycho_aq = obs_data_get_bool(settings, "psycho_aq");
-	void *enc = nvenc_create_internal(settings, encoder, psycho_aq);
+	void *enc = nvenc_create_internal(settings, encoder, is_hevc,psycho_aq);
 	if ((enc == NULL) && psycho_aq) {
 		blog(LOG_WARNING,
 		     "[NVENC encoder] nvenc_create_internal failed, "
 		     "trying again without Psycho Visual Tuning");
-		enc = nvenc_create_internal(settings, encoder, false);
+		enc = nvenc_create_internal(settings, encoder, is_hevc, false);
 	}
 
 	return enc;
