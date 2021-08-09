@@ -90,6 +90,7 @@ bool opt_allow_opengl = false;
 bool opt_always_on_top = false;
 bool opt_disable_high_dpi_scaling = false;
 bool opt_disable_updater = false;
+bool opt_disable_missing_files_check = false;
 string opt_starting_collection;
 string opt_starting_profile;
 string opt_starting_scene;
@@ -817,6 +818,11 @@ bool OBSApp::InitLocale()
 
 	locale = lang;
 
+	// set basic default application locale
+	if (!locale.empty())
+		QLocale::setDefault(
+			QString::fromStdString(locale).replace('-', '_'));
+
 	string englishPath;
 	if (!GetDataFilePath("locale/" DEFAULT_LANG ".ini", englishPath)) {
 		OBSErrorBox(NULL, "Failed to find locale/" DEFAULT_LANG ".ini");
@@ -855,6 +861,13 @@ bool OBSApp::InitLocale()
 			blog(LOG_INFO, "Using preferred locale '%s'",
 			     locale_.c_str());
 			locale = locale_;
+
+			// set application default locale to the new choosen one
+			if (!locale.empty())
+				QLocale::setDefault(
+					QString::fromStdString(locale).replace(
+						'-', '_'));
+
 			return true;
 		}
 
@@ -1497,6 +1510,11 @@ bool OBSApp::IsUpdaterDisabled()
 	return opt_disable_updater;
 }
 
+bool OBSApp::IsMissingFilesCheckDisabled()
+{
+	return opt_disable_missing_files_check;
+}
+
 #ifdef __APPLE__
 #define INPUT_AUDIO_SOURCE "coreaudio_input_capture"
 #define OUTPUT_AUDIO_SOURCE "coreaudio_output_capture"
@@ -1768,13 +1786,27 @@ string GetFormatString(const char *format, const char *prefix,
 {
 	string f;
 
-	if (prefix && *prefix) {
-		f += prefix;
-		if (f.back() != ' ')
-			f += " ";
-	}
+	f = format;
 
-	f += format;
+	if (prefix && *prefix) {
+		string str_prefix = prefix;
+
+		if (str_prefix.back() != ' ')
+			str_prefix += " ";
+
+		size_t insert_pos = 0;
+		size_t tmp;
+
+		tmp = f.find_last_of('/');
+		if (tmp != string::npos && tmp > insert_pos)
+			insert_pos = tmp + 1;
+
+		tmp = f.find_last_of('\\');
+		if (tmp != string::npos && tmp > insert_pos)
+			insert_pos = tmp + 1;
+
+		f.insert(insert_pos, str_prefix);
+	}
 
 	if (suffix && *suffix) {
 		if (*suffix != ' ')
@@ -2697,6 +2729,10 @@ int main(int argc, char *argv[])
 		} else if (arg_is(argv[i], "--disable-updater", nullptr)) {
 			opt_disable_updater = true;
 
+		} else if (arg_is(argv[i], "--disable-missing-files-check",
+				  nullptr)) {
+			opt_disable_missing_files_check = true;
+
 		} else if (arg_is(argv[i], "--disable-high-dpi-scaling",
 				  nullptr)) {
 			opt_disable_high_dpi_scaling = true;
@@ -2720,6 +2756,7 @@ int main(int argc, char *argv[])
 				"--always-on-top: Start in 'always on top' mode.\n\n"
 				"--unfiltered_log: Make log unfiltered.\n\n"
 				"--disable-updater: Disable built-in updater (Windows/Mac only)\n\n"
+				"--disable-missing-files-check: Disable the missing files dialog which can appear on startup.\n\n"
 				"--disable-high-dpi-scaling: Disable automatic high-DPI scaling\n\n";
 
 #ifdef _WIN32
@@ -2751,6 +2788,14 @@ int main(int argc, char *argv[])
 		opt_disable_updater =
 			os_file_exists(BASE_PATH "/disable_updater") ||
 			os_file_exists(BASE_PATH "/disable_updater.txt");
+	}
+
+	if (!opt_disable_missing_files_check) {
+		opt_disable_missing_files_check =
+			os_file_exists(BASE_PATH
+				       "/disable_missing_files_check") ||
+			os_file_exists(BASE_PATH
+				       "/disable_missing_files_check.txt");
 	}
 #endif
 

@@ -19,6 +19,7 @@
 
 #include <QBuffer>
 #include <QAction>
+#include <QThread>
 #include <QWidgetAction>
 #include <QSystemTrayIcon>
 #include <QStyledItemDelegate>
@@ -380,6 +381,8 @@ private:
 	void ResetProfileData();
 	bool AddProfile(bool create_new, const char *title, const char *text,
 			const char *init_text = nullptr, bool rename = false);
+	bool CreateProfile(const std::string &newName, bool create_new,
+			   bool showWizardChecked, bool rename = false);
 	void DeleteProfile(const char *profile_name, const char *profile_dir);
 	void RefreshProfiles();
 	void ChangeProfile();
@@ -554,6 +557,17 @@ private:
 	void MoveSceneItem(enum obs_order_movement movement,
 			   const QString &action_name);
 
+	bool autoStartBroadcast = true;
+	bool autoStopBroadcast = true;
+	bool broadcastActive = false;
+	QPointer<QThread> youtubeStreamCheckThread;
+#if YOUTUBE_ENABLED
+	void YoutubeStreamCheck(const std::string &key);
+	void YouTubeActionDialogOk(const QString &id, const QString &key,
+				   bool autostart, bool autostop);
+#endif
+	void BroadcastButtonClicked();
+
 public slots:
 	void DeferSaveBegin();
 	void DeferSaveEnd();
@@ -608,6 +622,10 @@ public slots:
 
 	bool AddSceneCollection(bool create_new,
 				const QString &name = QString());
+
+	bool NewProfile(const QString &name);
+	bool DuplicateProfile(const QString &name);
+	void DeleteProfile(const QString &profileName);
 
 	void UpdatePatronJson(const QString &text, const QString &error);
 
@@ -739,7 +757,7 @@ private:
 
 	static void HotkeyTriggered(void *data, obs_hotkey_id id, bool pressed);
 
-	void AutoRemux();
+	void AutoRemux(QString input);
 
 	void UpdatePause(bool activate = true);
 	void UpdateReplayBuffer(bool activate = true);
@@ -973,7 +991,7 @@ private slots:
 	void on_actionNewProfile_triggered();
 	void on_actionDupProfile_triggered();
 	void on_actionRenameProfile_triggered();
-	void on_actionRemoveProfile_triggered();
+	void on_actionRemoveProfile_triggered(bool skipConfirmation = false);
 	void on_actionImportProfile_triggered();
 	void on_actionExportProfile_triggered();
 

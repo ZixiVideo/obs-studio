@@ -117,8 +117,8 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 		struct obs_frontend_source_list *sources) override
 	{
 		for (int i = 0; i < main->ui->transitions->count(); i++) {
-			OBSSource tr = main->ui->transitions->itemData(i)
-					       .value<OBSSource>();
+			obs_source_t *tr = main->ui->transitions->itemData(i)
+						   .value<OBSSource>();
 
 			if (!tr)
 				continue;
@@ -238,6 +238,16 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 		return bstrdup(name);
 	}
 
+	char *obs_frontend_get_current_profile_path(void) override
+	{
+		char profilePath[512];
+		int ret = GetProfilePath(profilePath, sizeof(profilePath), "");
+		if (ret <= 0)
+			return nullptr;
+
+		return bstrdup(profilePath);
+	}
+
 	void obs_frontend_set_current_profile(const char *profile) override
 	{
 		QList<QAction *> menuActions = main->ui->profileMenu->actions();
@@ -254,6 +264,24 @@ struct OBSStudioAPI : obs_frontend_callbacks {
 				}
 			}
 		}
+	}
+
+	void obs_frontend_create_profile(const char *name) override
+	{
+		QMetaObject::invokeMethod(main, "NewProfile",
+					  Q_ARG(QString, name));
+	}
+
+	void obs_frontend_duplicate_profile(const char *name) override
+	{
+		QMetaObject::invokeMethod(main, "DuplicateProfile",
+					  Q_ARG(QString, name));
+	}
+
+	void obs_frontend_delete_profile(const char *profile) override
+	{
+		QMetaObject::invokeMethod(main, "DeleteProfile",
+					  Q_ARG(QString, profile));
 	}
 
 	void obs_frontend_streaming_start(void) override
