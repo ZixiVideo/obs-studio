@@ -290,7 +290,11 @@ void OBSBasicSettings::LoadStream1Settings()
 		if (idx == -1) {
 			if (service && *service)
 				ui->service->insertItem(1, service);
+#ifndef ENABLE_ZIXI_SUPPORT
 			idx = 1;
+#else
+			idx = 2;
+#endif
 		}
 		ui->service->setCurrentIndex(idx);
 
@@ -840,7 +844,11 @@ void OBSBasicSettings::on_authPwShow_clicked()
 OBSService OBSBasicSettings::SpawnTempService()
 {
 	bool custom = IsCustomService();
+	bool zixi = IsZixiService() && IsZixiPluginLoaded();
 	const char *service_id = custom ? "rtmp_custom" : "rtmp_common";
+	if (zixi) {
+		service_id = "zixi_service";
+	}
 
 	OBSData settings = obs_data_create();
 	obs_data_release(settings);
