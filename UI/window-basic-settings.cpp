@@ -463,6 +463,7 @@ OBSBasicSettings::OBSBasicSettings(QWidget *parent)
 	HookWidget(ui->advOutSplitFileType,  COMBO_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutSplitFileTime,  SCROLL_CHANGED, OUTPUTS_CHANGED);
 	HookWidget(ui->advOutSplitFileSize,  SCROLL_CHANGED, OUTPUTS_CHANGED);
+	HookWidget(ui->advOutSplitFileRstTS, CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutRecTrack1,      CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutRecTrack2,      CHECK_CHANGED,  OUTPUTS_CHANGED);
 	HookWidget(ui->advOutRecTrack3,      CHECK_CHANGED,  OUTPUTS_CHANGED);
@@ -1981,6 +1982,8 @@ void OBSBasicSettings::LoadAdvOutputRecordingSettings()
 		config_get_int(main->Config(), "AdvOut", "RecSplitFileTime");
 	int splitFileSize =
 		config_get_int(main->Config(), "AdvOut", "RecSplitFileSize");
+	bool splitFileResetTimestamps = config_get_bool(
+		main->Config(), "AdvOut", "RecSplitFileResetTimestamps");
 
 	int typeIndex = (astrcmpi(type, "FFmpeg") == 0) ? 1 : 0;
 	ui->advOutRecType->setCurrentIndex(typeIndex);
@@ -2005,6 +2008,7 @@ void OBSBasicSettings::LoadAdvOutputRecordingSettings()
 	ui->advOutSplitFileType->setCurrentIndex(idx);
 	ui->advOutSplitFileTime->setValue(splitFileTime);
 	ui->advOutSplitFileSize->setValue(splitFileSize);
+	ui->advOutSplitFileRstTS->setChecked(splitFileResetTimestamps);
 
 	switch (flvTrack) {
 	case 1:
@@ -3588,6 +3592,8 @@ void OBSBasicSettings::SaveOutputSettings()
 		SplitFileTypeFromIdx(ui->advOutSplitFileType->currentIndex()));
 	SaveSpinBox(ui->advOutSplitFileTime, "AdvOut", "RecSplitFileTime");
 	SaveSpinBox(ui->advOutSplitFileSize, "AdvOut", "RecSplitFileSize");
+	SaveCheckBox(ui->advOutSplitFileRstTS, "AdvOut",
+		     "RecSplitFileResetTimestamps");
 
 	config_set_int(
 		main->Config(), "AdvOut", "RecTracks",
@@ -4592,6 +4598,7 @@ void OBSBasicSettings::AdvOutSplitFileChanged()
 	ui->advOutSplitFileTime->setVisible(splitFileType == 0);
 	ui->advOutSplitFileSizeLabel->setVisible(splitFileType == 1);
 	ui->advOutSplitFileSize->setVisible(splitFileType == 1);
+	ui->advOutSplitFileRstTS->setVisible(splitFile);
 }
 
 void OBSBasicSettings::AdvOutRecCheckWarnings()

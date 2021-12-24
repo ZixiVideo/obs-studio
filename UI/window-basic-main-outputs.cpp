@@ -1843,6 +1843,7 @@ bool AdvancedOutput::StartRecording()
 	const char *splitFileType;
 	int splitFileTime;
 	int splitFileSize;
+	bool splitFileResetTimestamps;
 
 	if (!useStreamEncoder) {
 		if (!ffmpegOutput) {
@@ -1899,6 +1900,9 @@ bool AdvancedOutput::StartRecording()
 							 "AdvOut",
 							 "RecSplitFileSize")
 					: 0;
+			splitFileResetTimestamps =
+				config_get_bool(main->Config(), "AdvOut",
+						"RecSplitFileResetTimestamps");
 			obs_data_set_string(settings, "directory", path);
 			obs_data_set_string(settings, "format", filenameFormat);
 			obs_data_set_string(settings, "extension", recFormat);
@@ -1909,6 +1913,8 @@ bool AdvancedOutput::StartRecording()
 					 splitFileTime);
 			obs_data_set_int(settings, "max_size_mb",
 					 splitFileSize);
+			obs_data_set_bool(settings, "reset_timestamps",
+					  splitFileResetTimestamps);
 		}
 
 		obs_output_update(fileOutput, settings);
